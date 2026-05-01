@@ -1,0 +1,81 @@
+# Ant Colony
+
+Browser-based ant colony simulation. Place a nest, food sources, and walls;
+watch ants discover food and form pheromone trails.
+
+## How to run
+
+Open `index.html` in a modern browser.
+
+ES modules from `file://` work in Firefox out of the box. Chrome blocks
+them for security — if you see a blank page in Chrome, run a local static
+server from this directory:
+
+```
+python -m http.server 8000
+# then open http://localhost:8000/
+```
+
+## Current phase: 1 — MVP sandbox (complete)
+
+Working:
+- 1000×800 canvas
+- Place nest (one), food sources (many), walls (paint by drag), eraser
+- Ants spawn from nest, wander, find food, return, drop, repeat
+- Two pheromone grids (home + food), evaporation, deposit-strength decay
+- **Mortality:** ants that fail to reach the nest or food within `lifespan`
+  ticks die. This is what keeps the colony from deadlocking on stuck
+  carriers — see [SPEC.md](SPEC.md#mortality-ant-lifespan)
+- Heatmap toggle (blue = home, red = food, blended where overlapping)
+- Controls: play/pause, speed (0.25×–8×), max ants, reset
+- Stats: food collected, active ants, ants died, ticks elapsed
+
+## What's next
+
+Phase 1 is feature-complete. **Stop here and check in with the user before
+starting Phase 2.** Likely next steps:
+
+1. Confirm Phase 1 feels right (trails form within ~30s, parameters feel
+   reasonable).
+2. Begin Phase 2: parameter sliders, finite food, save/load, zoom/pan.
+
+## Known issues / rough edges
+
+- Ants can occasionally jitter when reflecting in tight obstacle pockets.
+- Food in Phase 1 is infinite; finite quantities arrive in Phase 2.
+
+## File map
+
+- [index.html](index.html) — DOM shell (canvas + control panel)
+- [styles.css](styles.css) — layout and panel styles
+- [js/main.js](js/main.js) — entry point, sim loop, frame timing
+- [js/sim.js](js/sim.js) — Sim class: world + ants + pheromones, tick
+- [js/world.js](js/world.js) — World class: nest, food, obstacles, grid
+- [js/ant.js](js/ant.js) — Ant data + per-tick behaviour (sense, move, deposit)
+- [js/pheromone.js](js/pheromone.js) — PheromoneGrid: deposit, evaporate, sample
+- [js/render.js](js/render.js) — Renderer: heatmap, obstacles, food, nest, ants
+- [js/input.js](js/input.js) — mouse handling and placement tools
+- [js/ui.js](js/ui.js) — control panel wiring, stats updates
+- [js/storage.js](js/storage.js) — localStorage save/load (Phase 2 stub)
+- [SPEC.md](SPEC.md) — stable design reference
+
+## Recent decisions
+
+- **Cell size 4 px** → 250×200 grid for the 1000×800 canvas. Two
+  Float32Arrays = 400 KB total. Evaporation pass is ~50K multiplies, fine
+  at 60 Hz.
+- **`depositStrength` per ant** decays each tick and resets at food/nest.
+  Without it, trails cannot optimise away from a long initial detour.
+- **Ant mortality** rather than persistent pheromone emission from nest/
+  food. We tried emitting pheromone halos around nest and food to bridge
+  the dead zone, but it created sharp pheromone discontinuities and didn't
+  match the brief's pure-stigmergy model. Mortality (lost ants die) is the
+  cleaner answer: the colony self-prunes failed routes via attrition, and
+  fresh ants follow whatever trails currently work.
+- **Heatmap renders to an offscreen canvas at grid resolution**, then is
+  `drawImage`'d scaled up. Direct pixel writes at canvas resolution would
+  be ~5× the work.
+- **Obstacles cached to an offscreen canvas**, redrawn only when something
+  changes. Stops the per-frame O(cells) scan from being a bottleneck.
+- **Camera transform plumbed through every draw**, even with zoom/pan
+  disabled in Phase 1. Cheap to add now, expensive to retrofit.

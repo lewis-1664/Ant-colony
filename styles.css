@@ -1,0 +1,139 @@
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: #181c20;
+  color: #d8dce0;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+#canvas-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+  overflow: hidden;
+}
+
+#canvas {
+  background: #0d1116;
+  border: 1px solid #2a2f36;
+  max-width: 100%;
+  max-height: 100%;
+  cursor: crosshair;
+}
+
+#panel {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 16px;
+  background: #1f2429;
+  border-left: 1px solid #2a2f36;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+#panel h1 {
+  font-size: 16px;
+  margin: 0 0 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e8ebee;
+}
+
+#panel h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a9097;
+  margin: 16px 0 8px;
+  border-bottom: 1px solid #2a2f36;
+  padding-bottom: 4px;
+}
+
+#panel section { margin-bottom: 8px; }
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.row > * { flex: 1; }
+
+#panel button {
+  background: #2a3138;
+  border: 1px solid #353c44;
+  color: #d8dce0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+#panel button:hover { background: #343b43; }
+#panel button.active {
+  background: #4a6fa5;
+  border-color: #6286b8;
+  color: white;
+}
+
+#panel label {
+  display: block;
+  margin: 8px 0 4px;
+  color: #b8bdc2;
+}
+
+#panel label > span {
+  float: right;
+  color: #d8dce0;
+  font-variant-numeric: tabular-nums;
+}
+
+#panel input[type=range] {
+  width: 100%;
+  margin: 4px 0;
+}
+
+.check {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.check input { margin: 0; }
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  color: #b8bdc2;
+}
+.stat b {
+  color: #f5d061;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 11px;
+  color: #8a9097;
+  margin: 6px 0 0;
+}
+
+.footer {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #6c7177;
+  line-height: 1.4;
+}
