@@ -84,6 +84,28 @@ initial scout path.
 Evaporation is a global multiply (e.g. `0.997` per tick). Cell values are
 clamped to a max to keep the heatmap colour range stable.
 
+## Two-caste colony (scouts and workers)
+
+Every ant is one of two roles, fixed at spawn:
+
+- **Scout** — large `wander`, weak pheromone-following bias. Explores
+  widely; cheap to "waste" since the colony has spare ones.
+- **Worker** — small `wander`, strong pheromone-following bias. Sticks
+  tight to existing trails and exploits them.
+
+`scoutFraction` of `maxAnts` are scouts; the rest are workers. Scouts
+spawn first up to quota, so the colony bootstraps with explorers before
+exploiters arrive. Without this split, every ant wanders randomly, the
+pheromone field is dominated by noise, and workers can't lock onto
+trails because there is no clear gradient to lock onto. With the split,
+scouts paint a faint exploratory trail; once any of them finds food and
+returns, workers latch onto the food trail and reinforce it sharply.
+
+Both roles can become carriers — picking up food is a state change, not
+a role change. A scout carrying food still has high `wander`; many die
+before delivering, but their food deposits help bootstrap the trail for
+the workers behind them.
+
 ## Mortality (ant lifespan)
 
 Each ant has a `lifeRemaining` counter (default `lifespan = 3000` ticks).

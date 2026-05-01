@@ -23,10 +23,15 @@ Working:
 - Place nest (one), food sources (many), walls (paint by drag), eraser
 - Ants spawn from nest, wander, find food, return, drop, repeat
 - Two pheromone grids (home + food), evaporation, deposit-strength decay
+- **Two-caste colony:** ~20% scouts (high wander, weak pheromone bias —
+  explore) and ~80% workers (low wander, strong bias — exploit). Scouts
+  spawn first so the colony bootstraps with explorers — see
+  [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
 - **Mortality:** ants that fail to reach the nest or food within `lifespan`
-  ticks die. This is what keeps the colony from deadlocking on stuck
-  carriers — see [SPEC.md](SPEC.md#mortality-ant-lifespan)
+  ticks die. Keeps the colony from deadlocking on stuck carriers —
+  see [SPEC.md](SPEC.md#mortality-ant-lifespan)
 - Heatmap toggle (blue = home, red = food, blended where overlapping)
+- Ant colour: pink = scouts, gray = workers, yellow = carrying food
 - Controls: play/pause, speed (0.25×–8×), max ants, reset
 - Stats: food collected, active ants, ants died, ticks elapsed
 
@@ -61,6 +66,12 @@ starting Phase 2.** Likely next steps:
 
 ## Recent decisions
 
+- **Scout/worker split.** A single role with one `wander` parameter
+  produced too much trail noise — every ant explored, the pheromone
+  field never developed a clear gradient, and workers couldn't lock on.
+  Splitting into ~20% scouts (high wander, weak pheromone bias) and
+  ~80% workers (low wander, strong bias) makes the colony bootstrap
+  with explorers and then exploit cleanly with the rest.
 - **No ES modules.** Each JS file is an IIFE that attaches its exports to
   `window.AntSim`, loaded by plain `<script>` tags in dependency order.
   ES modules would have been cleaner, but Chrome blocks module imports

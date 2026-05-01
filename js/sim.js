@@ -9,14 +9,24 @@ window.AntSim = window.AntSim || {};
   // Default tunables. Phase 2 will expose more of these via sliders.
   const DEFAULT_PARAMS = {
     speed: 1.0,           // px per tick
-    turnStrength: 0.4,    // rad per tick toward chosen sensor
-    wander: 0.18,         // ± rad per tick of random noise
     sensorAngle: 0.5,     // ± rad off-axis for left/right sensors
     sensorDist: 12,       // px ahead for sensor sample
     depositRate: 0.5,     // pheromone deposited per tick (× ant.depositStrength)
     depositDecay: 0.9995, // per-ant strength decay per tick
     evaporation: 0.997,   // per-cell decay per tick (PheromoneGrid uses this)
     spawnInterval: 8,     // ticks between spawns when below maxAnts
+    // Two-caste colony: scouts wander widely with weak pheromone bias to
+    // explore and discover food; workers stay tight on existing trails to
+    // exploit them. Scouts spawn first (up to scoutFraction × maxAnts), so
+    // the colony bootstraps with explorers before exploiters flood in.
+    // Without this split, every ant wanders randomly and the pheromone
+    // field is dominated by noise — workers can't lock onto trails because
+    // there's no clear gradient to lock onto.
+    scoutFraction: 0.20,
+    scoutWander: 0.32,        // rad per tick — large random heading noise
+    scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (weak)
+    workerWander: 0.08,       // rad per tick — small noise, stays on heading
+    workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Lifespan: ticks an ant has before dying. Reset on visiting the nest or
     // a food source — each leg of the round trip has its own time budget.
     // This is the system's selection pressure: carriers that can't find their
@@ -37,6 +47,7 @@ window.AntSim = window.AntSim || {};
       this.foodCollected = 0;
       this.antsDied = 0;
       this._spawnAccum = 0;
+      this._scoutCount = 0;
       this._rng = Math.random;
     }
 
@@ -48,21 +59,34 @@ window.AntSim = window.AntSim || {};
       this.foodCollected = 0;
       this.antsDied = 0;
       this._spawnAccum = 0;
+      this._scoutCount = 0;
     }
 
     setMaxAnts(n) {
       this.maxAnts = n;
-      if (this.ants.length > n) this.ants.length = n;
+      if (this.ants.length > n) {
+        this.ants.length = n;
+        // Recount scouts after truncation so spawn quotas stay correct.
+        let s = 0;
+        for (const a of this.ants) if (a.role === 'scout') s++;
+        this._scoutCount = s;
+      }
     }
 
     spawnAnt() {
       if (!this.world.nest || this.ants.length >= this.maxAnts) return;
+      // Scouts spawn first up to quota, then workers. Counts are tracked
+      // incrementally; decrements happen in tick() when an ant dies.
+      const wantScouts = Math.floor(this.maxAnts * this.params.scoutFraction);
+      const isScout = this._scoutCount < wantScouts;
       const a = new Ant(
         this.world.nest.x,
         this.world.nest.y,
         this._rng() * Math.PI * 2,
       );
+      a.role = isScout ? 'scout' : 'worker';
       a.lifeRemaining = this.params.lifespan;
+      if (isScout) this._scoutCount++;
       this.ants.push(a);
     }
 
@@ -88,6 +112,7 @@ window.AntSim = window.AntSim || {};
         if (r === 'delivered') this.foodCollected++;
         if (r === 'died') {
           this.antsDied++;
+          if (ant.role === 'scout') this._scoutCount--;
           continue;
         }
         ants[writeIdx++] = ant;

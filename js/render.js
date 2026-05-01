@@ -131,13 +131,23 @@ window.AntSim = window.AntSim || {};
     drawAnts() {
       const ctx = this.ctx;
       const ants = this.sim.ants;
-      // Two passes: searching first (pale dots), carriers on top (vivid yellow).
+      // Three passes for layering. Workers searching = pale gray, scouts
+      // searching = pink (so it's obvious which ants are exploring), and
+      // any carrier (regardless of caste) = vivid yellow on top.
       ctx.fillStyle = '#cfd6dc';
       for (let i = 0; i < ants.length; i++) {
         const a = ants[i];
-        if (a.hasFood) continue;
+        if (a.hasFood || a.role === 'scout') continue;
         ctx.beginPath();
         ctx.arc(a.x, a.y, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#e98ab8';
+      for (let i = 0; i < ants.length; i++) {
+        const a = ants[i];
+        if (a.hasFood || a.role !== 'scout') continue;
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 1.7, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.fillStyle = '#f5d061';

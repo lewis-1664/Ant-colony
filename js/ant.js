@@ -13,6 +13,10 @@ window.AntSim = window.AntSim || {};
       this.y = y;
       this.heading = heading;
       this.hasFood = false;
+      // 'scout' = high wander + weak pheromone bias (explorer);
+      // 'worker' = low wander + strong pheromone bias (exploiter).
+      // Sim.spawnAnt assigns the role; this default is just a safety net.
+      this.role = 'worker';
       // Decays each tick toward zero, resets to 1 when the ant touches food
       // or nest. Multiplied into deposit, so ants reaching their goal quickly
       // leave stronger trails than ants that wandered far. This is what makes
@@ -42,6 +46,12 @@ window.AntSim = window.AntSim || {};
   // One-tick update for a single ant.
   // Returns 'delivered' on food drop-off, 'died' when lifespan expires, else undefined.
   function tickAnt(ant, world, pher, p, rng) {
+    // Role-specific behaviour: scouts wander with weak pheromone bias,
+    // workers stick close to existing trails.
+    const isScout = ant.role === 'scout';
+    const turnStrength = isScout ? p.scoutTurnStrength : p.workerTurnStrength;
+    const wander       = isScout ? p.scoutWander       : p.workerWander;
+
     // 1. Three-sensor read. Strongest sample steers the turn; equal/none → wander only.
     const left  = sense(ant, pher, -p.sensorAngle, p.sensorDist);
     const fwd   = sense(ant, pher,  0,             p.sensorDist);
@@ -50,13 +60,13 @@ window.AntSim = window.AntSim || {};
     if (fwd >= left && fwd >= right) {
       // already heading toward strongest — only wander
     } else if (left > right) {
-      ant.heading -= p.turnStrength;
+      ant.heading -= turnStrength;
     } else if (right > left) {
-      ant.heading += p.turnStrength;
+      ant.heading += turnStrength;
     } else {
-      ant.heading += (rng() < 0.5 ? -1 : 1) * p.turnStrength;
+      ant.heading += (rng() < 0.5 ? -1 : 1) * turnStrength;
     }
-    ant.heading += (rng() * 2 - 1) * p.wander;
+    ant.heading += (rng() * 2 - 1) * wander;
 
     // 2. Try to move. If blocked, attempt up to 8 random deflections; if all
     //    fail, flip and skip move (rare — only happens when sealed in walls).
