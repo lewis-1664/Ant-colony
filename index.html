@@ -57,6 +57,16 @@
     <p class="footer">Phase 1 sandbox. Pheromones: blue = home, red = food.</p>
   </aside>
 </div>
-<script type="module" src="js/main.js"></script>
+<!-- Plain scripts in dependency order so this Just Works from file:// too.
+     Each file attaches its exports to the window.AntSim namespace. -->
+<script src="js/pheromone.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ant.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

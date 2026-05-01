@@ -1,29 +1,36 @@
 // Save/load via localStorage. Phase 1 wires only this stub; full named-layout
 // persistence and UI surface arrive in Phase 2.
 
-const KEY = 'antcolony.layouts';
+window.AntSim = window.AntSim || {};
+(function (AntSim) {
+  'use strict';
 
-export function saveLayout(name, payload) {
-  const all = loadAll();
-  all[name] = payload;
-  localStorage.setItem(KEY, JSON.stringify(all));
-}
+  const KEY = 'antcolony.layouts';
 
-export function loadLayout(name) {
-  return loadAll()[name] || null;
-}
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
 
-export function listLayouts() {
-  return Object.keys(loadAll());
-}
+  function saveLayout(name, payload) {
+    const all = loadAll();
+    all[name] = payload;
+    localStorage.setItem(KEY, JSON.stringify(all));
+  }
 
-export function deleteLayout(name) {
-  const all = loadAll();
-  delete all[name];
-  localStorage.setItem(KEY, JSON.stringify(all));
-}
+  function loadLayout(name) {
+    return loadAll()[name] || null;
+  }
 
-function loadAll() {
-  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
-  catch { return {}; }
-}
+  function listLayouts() {
+    return Object.keys(loadAll());
+  }
+
+  function deleteLayout(name) {
+    const all = loadAll();
+    delete all[name];
+    localStorage.setItem(KEY, JSON.stringify(all));
+  }
+
+  AntSim.storage = { saveLayout, loadLayout, listLayouts, deleteLayout };
+})(window.AntSim);

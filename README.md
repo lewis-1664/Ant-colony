@@ -5,11 +5,11 @@ watch ants discover food and form pheromone trails.
 
 ## How to run
 
-Open `index.html` in a modern browser.
+Double-click `index.html` (or open it in any modern browser). No build step,
+no server needed — the JS files load as plain `<script>` tags and attach to
+a `window.AntSim` namespace, so this works from `file://` too.
 
-ES modules from `file://` work in Firefox out of the box. Chrome blocks
-them for security — if you see a blank page in Chrome, run a local static
-server from this directory:
+If you'd rather serve over HTTP for any reason:
 
 ```
 python -m http.server 8000
@@ -61,6 +61,12 @@ starting Phase 2.** Likely next steps:
 
 ## Recent decisions
 
+- **No ES modules.** Each JS file is an IIFE that attaches its exports to
+  `window.AntSim`, loaded by plain `<script>` tags in dependency order.
+  ES modules would have been cleaner, but Chrome blocks module imports
+  from `file://`, which contradicts the brief's "open `index.html` and
+  it Just Works" promise. The file boundaries are still meaningful — the
+  namespace just substitutes for `import`/`export`.
 - **Cell size 4 px** → 250×200 grid for the 1000×800 canvas. Two
   Float32Arrays = 400 KB total. Evaporation pass is ~50K multiplies, fine
   at 60 Hz.

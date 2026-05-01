@@ -21,10 +21,12 @@ knowledge.
 - Vanilla JS, HTML, CSS. No frameworks, no build step, no npm dependencies.
 - Single `<canvas>` element for rendering.
 - `localStorage` for save/load.
-- ES modules via `<script type="module">`.
-- Everything runs client-side; opening `index.html` in a browser Just Works
-  (Firefox; Chrome may need a local static server because of its stricter
-  module-from-`file://` policy — see README).
+- Plain `<script>` tags loaded in dependency order; each file attaches its
+  exports to `window.AntSim`. We *don't* use ES modules — Chrome blocks
+  module imports from `file://` URLs, which would break the brief's "open
+  index.html and it Just Works" promise.
+- Everything runs client-side; opening `index.html` directly Just Works
+  in every browser.
 
 ## Architecture decisions (load-bearing — change with care)
 
@@ -50,7 +52,7 @@ knowledge.
    (`translate` then `scale`), even though Phase 1 leaves zoom/pan disabled.
    Retrofitting this is a pain — keep it plumbed through.
 
-6. **Module boundaries:**
+6. **File boundaries (one IIFE per file, all hang off `window.AntSim`):**
    - `main.js` — entry point, owns the loop
    - `sim.js` — sim state and tick logic
    - `ant.js` — ant behaviour
@@ -60,6 +62,8 @@ knowledge.
    - `input.js` — mouse/keyboard handling, placement tools
    - `ui.js` — control panel, sliders, stats
    - `storage.js` — save/load (Phase 2)
+   - Load order in `index.html` follows the dependency graph — leaves
+     (pheromone, world) before consumers (ant, sim, render) before main.
 
 ## Pheromone model
 
