@@ -27,6 +27,9 @@ Working:
   explore) and ~80% workers (low wander, strong bias — exploit). Scouts
   spawn first so the colony bootstraps with explorers — see
   [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
+- **Recruitment:** workers don't spawn until a scout returns with food.
+  Once one does, workers march out along the heading the scout came
+  from — see [SPEC.md](SPEC.md#recruitment-workers-wait-for-scouts)
 - **Snap-to-destination:** within ~32 px of nest/food, ants steer
   directly at the target instead of via pheromone. Stops the "drift past
   destination → phantom trail" failure — see

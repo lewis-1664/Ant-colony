@@ -34,6 +34,14 @@ window.AntSim = window.AntSim || {};
     // few pixels, deposit pheromone past it, and create a phantom trail
     // extension that other ants then reinforce.
     snapDist: 32,
+    // Recruitment: workers don't spawn until a scout returns to the nest
+    // with food. When that happens, the colony "knows" food exists and in
+    // roughly which direction. Subsequent worker spawns leave heading along
+    // that direction (with a small jitter), so they head straight onto the
+    // existing trail instead of wandering to find it. Without this, workers
+    // pile into the colony immediately, wander aimlessly because there's no
+    // trail yet to follow, and add noise that scouts have to overcome.
+    workerSpawnSpread: 0.5,   // ± rad jitter on worker outgoing heading
     // Lifespan: ticks an ant has before dying. Reset on visiting the nest or
     // a food source — each leg of the round trip has its own time budget.
     // This is the system's selection pressure: carriers that can't find their
@@ -53,6 +61,11 @@ window.AntSim = window.AntSim || {};
       this.tickCount = 0;
       this.foodCollected = 0;
       this.antsDied = 0;
+      // Recruitment state: workers spawn only after `foodFound` flips true
+      // (set on the first successful delivery), and use `outgoingHeading`
+      // as the direction to march out of the nest.
+      this.foodFound = false;
+      this.outgoingHeading = 0;
       this._spawnAccum = 0;
       this._scoutCount = 0;
       this._rng = Math.random;
@@ -65,6 +78,8 @@ window.AntSim = window.AntSim || {};
       this.tickCount = 0;
       this.foodCollected = 0;
       this.antsDied = 0;
+      this.foodFound = false;
+      this.outgoingHeading = 0;
       this._spawnAccum = 0;
       this._scoutCount = 0;
     }
@@ -82,15 +97,25 @@ window.AntSim = window.AntSim || {};
 
     spawnAnt() {
       if (!this.world.nest || this.ants.length >= this.maxAnts) return;
-      // Scouts spawn first up to quota, then workers. Counts are tracked
-      // incrementally; decrements happen in tick() when an ant dies.
       const wantScouts = Math.floor(this.maxAnts * this.params.scoutFraction);
       const isScout = this._scoutCount < wantScouts;
-      const a = new Ant(
-        this.world.nest.x,
-        this.world.nest.y,
-        this._rng() * Math.PI * 2,
-      );
+      // Recruitment gate: workers don't spawn until a scout has actually
+      // returned with food. Until then we keep filling the scout slot.
+      if (!isScout && !this.foodFound) return;
+
+      let heading;
+      if (isScout) {
+        heading = this._rng() * Math.PI * 2;
+      } else {
+        // Workers march out along the heading captured from the most recent
+        // successful delivery — that's the direction the scout came from,
+        // i.e. roughly toward the active food trail. Small jitter spreads
+        // them so they don't all literally walk the same line.
+        const spread = this.params.workerSpawnSpread;
+        heading = this.outgoingHeading + (this._rng() - 0.5) * 2 * spread;
+      }
+
+      const a = new Ant(this.world.nest.x, this.world.nest.y, heading);
       a.role = isScout ? 'scout' : 'worker';
       a.lifeRemaining = this.params.lifespan;
       if (isScout) this._scoutCount++;
@@ -116,7 +141,14 @@ window.AntSim = window.AntSim || {};
       for (let i = 0; i < ants.length; i++) {
         const ant = ants[i];
         const r = tickAnt(ant, this.world, this.pheromones, this.params, this._rng);
-        if (r === 'delivered') this.foodCollected++;
+        if (r === 'delivered') {
+          this.foodCollected++;
+          // Capture recruitment state. ant.heading after a successful drop
+          // has been flipped 180°, so it now points outward — the direction
+          // the scout originally came from, which is roughly toward food.
+          this.foodFound = true;
+          this.outgoingHeading = ant.heading;
+        }
         if (r === 'died') {
           this.antsDied++;
           if (ant.role === 'scout') this._scoutCount--;

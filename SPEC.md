@@ -106,6 +106,27 @@ a role change. A scout carrying food still has high `wander`; many die
 before delivering, but their food deposits help bootstrap the trail for
 the workers behind them.
 
+## Recruitment (workers wait for scouts)
+
+Workers don't spawn until a scout has actually returned to the nest with
+food. While the colony is still searching, only scouts spawn — up to
+`scoutFraction × maxAnts`. The first successful delivery flips a
+`foodFound` flag and stamps an `outgoingHeading` taken from the
+delivering ant's post-flip heading (the direction it just came from,
+i.e. roughly toward food).
+
+After that, every worker spawn uses `outgoingHeading` plus a small
+jitter, so workers march out toward the active trail instead of
+wandering in random directions hoping to find it. This produces the
+signature "column marching out" look once a trail is established and
+sharply reduces early-colony noise: in the canonical test, deaths drop
+roughly 50% over 12k ticks compared with workers-spawn-immediately,
+because workers only enter the world once there's something for them
+to follow.
+
+A scout returning empty-handed refreshes its own life but doesn't flip
+`foodFound` — only deliveries count.
+
 ## Snap-to-destination
 
 When an ant is within `snapDist` (~32 px) of its current target — nest
