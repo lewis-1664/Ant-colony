@@ -29,7 +29,16 @@ Working:
   [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
 - **Recruitment:** workers don't spawn until a scout returns with food.
   Once one does, workers march out along the heading the scout came
-  from — see [SPEC.md](SPEC.md#recruitment-workers-wait-for-scouts)
+  from. Recent delivery headings live in a small ring buffer so multiple
+  food sources can each get workers when both are productive — see
+  [SPEC.md](SPEC.md#recruitment-workers-wait-for-scouts)
+- **U-turn on fading trail:** workers on a trail whose pheromone is
+  dropping flip 180°, so the colony naturally abandons depleted routes —
+  see [SPEC.md](SPEC.md#u-turn-on-weakening-trail)
+- **Pheromone diffusion:** both grids get a per-tick blur (5-point
+  stencil), modelling chemical diffusion in air. Smooths spikes,
+  extends gradient reach, tightens trails — see
+  [SPEC.md](SPEC.md#pheromone-model)
 - **Snap-to-destination:** within ~32 px of nest/food, ants steer
   directly at the target instead of via pheromone. Stops the "drift past
   destination → phantom trail" failure — see
@@ -55,6 +64,10 @@ starting Phase 2.** Likely next steps:
 
 - Ants can occasionally jitter when reflecting in tight obstacle pockets.
 - Food in Phase 1 is infinite; finite quantities arrive in Phase 2.
+- **Winner-take-all on multi-source.** Once one trail forms, scouts get
+  pulled into it (via snap-to-destination near food) and are unlikely to
+  discover a second source unless they happen to find it before the
+  first trail establishes. Real colonies show the same pattern.
 
 ## File map
 

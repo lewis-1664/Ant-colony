@@ -14,6 +14,9 @@ window.AntSim = window.AntSim || {};
     depositRate: 0.5,     // pheromone deposited per tick (× ant.depositStrength)
     depositDecay: 0.9995, // per-ant strength decay per tick
     evaporation: 0.997,   // per-cell decay per tick (PheromoneGrid uses this)
+    diffusionRate: 0.06,  // per-tick blur applied to both pheromone grids;
+                          // models physical diffusion in air, smooths
+                          // spikes and extends gradient reach
     spawnInterval: 8,     // ticks between spawns when below maxAnts
     // Two-caste colony: scouts wander widely with weak pheromone bias to
     // explore and discover food; workers stay tight on existing trails to
@@ -42,6 +45,17 @@ window.AntSim = window.AntSim || {};
     // pile into the colony immediately, wander aimlessly because there's no
     // trail yet to follow, and add noise that scouts have to overcome.
     workerSpawnSpread: 0.5,   // ± rad jitter on worker outgoing heading
+    recruitMemory: 8,         // ring-buffer size of recent delivery headings.
+                              // With multiple food sources, workers spawn
+                              // along a randomly-chosen recent heading, so
+                              // both trails get reinforced.
+    // U-turn: workers on a fading trail flip 180° so they don't march into
+    // oblivion. Triggered when the pheromone reading at the ant's current
+    // cell is sharply lower than at its previous cell (a real-ant
+    // behaviour). Scouts skip this — they must be free to traverse low-
+    // pheromone regions while exploring.
+    fadeUTurnThreshold: 1.0,  // only U-turn if recent reading was at least this
+    fadeUTurnRatio: 0.4,      // U-turn if current reading dropped this fraction
     // Lifespan: ticks an ant has before dying. Reset on visiting the nest or
     // a food source — each leg of the round trip has its own time budget.
     // This is the system's selection pressure: carriers that can't find their
@@ -62,10 +76,12 @@ window.AntSim = window.AntSim || {};
       this.foodCollected = 0;
       this.antsDied = 0;
       // Recruitment state: workers spawn only after `foodFound` flips true
-      // (set on the first successful delivery), and use `outgoingHeading`
-      // as the direction to march out of the nest.
+      // (set on the first successful delivery). `_recentHeadings` is a
+      // ring buffer of headings captured from recent deliveries; worker
+      // spawns pick one uniformly so multiple food sources each get
+      // workers heading toward them.
       this.foodFound = false;
-      this.outgoingHeading = 0;
+      this._recentHeadings = [];
       this._spawnAccum = 0;
       this._scoutCount = 0;
       this._rng = Math.random;
@@ -79,7 +95,7 @@ window.AntSim = window.AntSim || {};
       this.foodCollected = 0;
       this.antsDied = 0;
       this.foodFound = false;
-      this.outgoingHeading = 0;
+      this._recentHeadings.length = 0;
       this._spawnAccum = 0;
       this._scoutCount = 0;
     }
@@ -107,12 +123,15 @@ window.AntSim = window.AntSim || {};
       if (isScout) {
         heading = this._rng() * Math.PI * 2;
       } else {
-        // Workers march out along the heading captured from the most recent
-        // successful delivery — that's the direction the scout came from,
-        // i.e. roughly toward the active food trail. Small jitter spreads
-        // them so they don't all literally walk the same line.
+        // Workers march out along a randomly-chosen recent delivery
+        // heading. With one food source the buffer fills with headings
+        // pointing roughly the same way; with two or more sources, each
+        // bearing gets sampled in proportion to how often it produces
+        // deliveries, so multiple trails are reinforced.
         const spread = this.params.workerSpawnSpread;
-        heading = this.outgoingHeading + (this._rng() - 0.5) * 2 * spread;
+        const buf = this._recentHeadings;
+        const base = buf[Math.floor(this._rng() * buf.length)];
+        heading = base + (this._rng() - 0.5) * 2 * spread;
       }
 
       const a = new Ant(this.world.nest.x, this.world.nest.y, heading);
@@ -145,9 +164,13 @@ window.AntSim = window.AntSim || {};
           this.foodCollected++;
           // Capture recruitment state. ant.heading after a successful drop
           // has been flipped 180°, so it now points outward — the direction
-          // the scout originally came from, which is roughly toward food.
+          // the ant originally came from, which is roughly toward food.
+          // Push into the ring buffer; trim oldest if over capacity.
           this.foodFound = true;
-          this.outgoingHeading = ant.heading;
+          this._recentHeadings.push(ant.heading);
+          if (this._recentHeadings.length > this.params.recruitMemory) {
+            this._recentHeadings.shift();
+          }
         }
         if (r === 'died') {
           this.antsDied++;
@@ -159,6 +182,7 @@ window.AntSim = window.AntSim || {};
       ants.length = writeIdx;
 
       this.pheromones.evaporate();
+      this.pheromones.diffuse(this.params.diffusionRate);
     }
   }
 

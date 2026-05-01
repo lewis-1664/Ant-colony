@@ -84,6 +84,13 @@ initial scout path.
 Evaporation is a global multiply (e.g. `0.997` per tick). Cell values are
 clamped to a max to keep the heatmap colour range stable.
 
+Each tick the grids are also **diffused** — every interior cell becomes a
+weighted average of itself and its four neighbours (5-point stencil).
+This models the physical diffusion of pheromone in air. It smooths
+spikes from passing ants, lets the gradient reach further than per-ant
+deposits alone could, and produces visibly tighter trails (deliveries
+roughly double on the canonical test versus no diffusion).
+
 ## Two-caste colony (scouts and workers)
 
 Every ant is one of two roles, fixed at spawn:
@@ -126,6 +133,35 @@ to follow.
 
 A scout returning empty-handed refreshes its own life but doesn't flip
 `foodFound` — only deliveries count.
+
+Recent delivery headings are kept in a small ring buffer
+(`recentMemory`, 8 entries). Each worker spawn picks one heading
+uniformly at random. With one food source the buffer fills with the
+same direction; with multiple sources whose trails are both producing
+deliveries, both bearings get sampled in proportion to their
+throughput, so both trails are reinforced.
+
+**Known limitation: winner-take-all on multi-source.** Once one trail
+forms, even scouts get drawn to it (snap-to-destination triggers near
+any food source), so a second source is unlikely to be discovered
+unless it's encountered by a scout before the first trail establishes.
+This is also a real-ant behaviour, not just our simulation — colonies
+often specialise on one source. Breaking the lock-in cleanly would
+need either explicit anti-trail "challenger" scouts, or some form of
+trail aging.
+
+## U-turn on weakening trail
+
+Workers track the pheromone reading at each cell they visit. When a
+worker arrives in a new cell whose reading is sharply lower than the
+previous cell's (`fadeUTurnRatio`, e.g. 40% drop on a trail above
+`fadeUTurnThreshold`), it flips heading 180° — the trail is fading and
+continuing forward likely leads to a dead end. Real ants do this when
+food depletes; in our sim it shows up as fewer workers wasting their
+lives drifting off-trail.
+
+Scouts skip the rule. They must be free to traverse low-pheromone
+regions while exploring.
 
 ## Snap-to-destination
 

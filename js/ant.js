@@ -23,6 +23,10 @@ window.AntSim = window.AntSim || {};
       // shortest-path emergent — without it, trails cannot optimise away from
       // a long initial scout path.
       this.depositStrength = 1.0;
+      // Last pheromone reading and the cell index it came from. Used by the
+      // worker U-turn rule to detect a sharply fading trail.
+      this.lastSample = 0;
+      this.lastSampleCell = -1;
       // Ticks of life remaining. Reset to full when the ant reaches the nest
       // or a food source. When it hits zero, the ant dies and is removed from
       // the colony, taking any food it was carrying with it. Sim.spawnAnt
@@ -78,6 +82,30 @@ window.AntSim = window.AntSim || {};
     const isScout = ant.role === 'scout';
     const turnStrength = isScout ? p.scoutTurnStrength : p.workerTurnStrength;
     const wander       = isScout ? p.scoutWander       : p.workerWander;
+
+    // 0. U-turn rule (workers only). When a worker arrives in a new cell
+    //    whose pheromone reading is sharply lower than the previous cell's,
+    //    flip 180° — the trail is fading and continuing forward likely
+    //    leads to a dead end. Scouts skip this so they can traverse low-
+    //    pheromone regions while exploring. The check is gated on a
+    //    threshold so freshly-spawned ants in empty regions don't twitch.
+    if (!isScout) {
+      const cx0 = Math.floor(ant.x / CELL_SIZE);
+      const cy0 = Math.floor(ant.y / CELL_SIZE);
+      const cellIdx = cy0 * pher.cols + cx0;
+      if (cellIdx !== ant.lastSampleCell) {
+        const here = ant.hasFood ? pher.sampleHome(cx0, cy0) : pher.sampleFood(cx0, cy0);
+        if (
+          ant.lastSampleCell >= 0 &&
+          ant.lastSample > p.fadeUTurnThreshold &&
+          here < ant.lastSample * (1 - p.fadeUTurnRatio)
+        ) {
+          ant.heading += Math.PI;
+        }
+        ant.lastSample = here;
+        ant.lastSampleCell = cellIdx;
+      }
+    }
 
     // 1a. Snap-to-destination overrides pheromone steering when very close
     //     to the relevant target. Sensors are skipped — heading is set
