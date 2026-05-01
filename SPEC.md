@@ -95,8 +95,13 @@ roughly double on the canonical test versus no diffusion).
 
 Every ant is one of two roles, fixed at spawn:
 
-- **Scout** — large `wander`, weak pheromone-following bias. Explores
-  widely; cheap to "waste" since the colony has spare ones.
+- **Scout** — pure explorer. Ignores food pheromone entirely while
+  searching: when `!hasFood`, sensor-based steering is skipped and the
+  ant moves on wander alone. Carrying food it falls back to home-
+  pheromone steering and snap, so it can still get home. Default
+  `scoutWander` is small (~0.08 rad/tick) so each scout walks roughly
+  ballistically and covers as much distance as possible before its
+  lifespan runs out.
 - **Worker** — small `wander`, strong pheromone-following bias. Sticks
   tight to existing trails and exploits them.
 
@@ -109,9 +114,20 @@ scouts paint a faint exploratory trail; once any of them finds food and
 returns, workers latch onto the food trail and reinforce it sharply.
 
 Both roles can become carriers — picking up food is a state change, not
-a role change. A scout carrying food still has high `wander`; many die
-before delivering, but their food deposits help bootstrap the trail for
-the workers behind them.
+a role change. A scout carrying food gets to use sensor steering again
+to home in, but its low `wander` means it tracks fairly straight back
+along its outbound path.
+
+**Why scouts ignore food pheromone:** without this, the very first
+scout to find food becomes a carrier laying a fresh food trail, and
+all the other searching scouts immediately follow it — chasing the
+carrier in a tight loop instead of continuing to explore. Scouts
+ignoring food pheromone keeps them spread radially around the nest,
+so the colony covers more ground and is less likely to lock into a
+chase-loop during bootstrap. The cost is some bootstrap variance:
+scouts find food by random encounter only, so distant food sources
+take longer to discover and occasionally a run fails to bootstrap
+within the recruitment timeout.
 
 ## Recruitment (workers wait for scouts)
 
@@ -141,14 +157,20 @@ same direction; with multiple sources whose trails are both producing
 deliveries, both bearings get sampled in proportion to their
 throughput, so both trails are reinforced.
 
+**Recruitment timeout.** A `_ticksSinceDelivery` counter resets to 0
+on each delivery and increments otherwise. If it crosses
+`recruitmentTimeout` (default 1200), the food channel is declared dead:
+`foodFound` flips back to false and the heading buffer is cleared.
+Worker spawning halts until a scout re-discovers food. Without this,
+workers kept spawning into evaporated trails when carriers were unable
+to deliver (e.g. food source removed, or a wall placed across the
+trail) and died uselessly.
+
 **Known limitation: winner-take-all on multi-source.** Once one trail
-forms, even scouts get drawn to it (snap-to-destination triggers near
-any food source), so a second source is unlikely to be discovered
-unless it's encountered by a scout before the first trail establishes.
-This is also a real-ant behaviour, not just our simulation — colonies
-often specialise on one source. Breaking the lock-in cleanly would
-need either explicit anti-trail "challenger" scouts, or some form of
-trail aging.
+forms, the first scout to discover the second source still has to do
+so by random walk (scouts ignore food pheromone). Discovery does
+happen but is slow — colonies often specialise on one source. Real
+ants behave the same way.
 
 ## U-turn on weakening trail
 

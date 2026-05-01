@@ -25,9 +25,15 @@ window.AntSim = window.AntSim || {};
     // Without this split, every ant wanders randomly and the pheromone
     // field is dominated by noise — workers can't lock onto trails because
     // there's no clear gradient to lock onto.
-    scoutFraction: 0.20,
-    scoutWander: 0.32,        // rad per tick — large random heading noise
-    scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (weak)
+    // Scout caste: pure explorers. They ignore food pheromone entirely
+    // when searching (see ant.js), so scoutTurnStrength is only used by
+    // scout *carriers* heading home. With pure exploration, bootstrap
+    // depends on random walks, so scoutFraction is higher and scoutWander
+    // is lower than the original tuning — scouts walk straighter so each
+    // one covers more ground before its lifespan runs out.
+    scoutFraction: 0.30,
+    scoutWander: 0.08,        // rad per tick — small noise, near-ballistic walks
+    scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (carriers only)
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Snap-to-destination: when an ant is within snapDist of its current
@@ -49,6 +55,11 @@ window.AntSim = window.AntSim || {};
                               // With multiple food sources, workers spawn
                               // along a randomly-chosen recent heading, so
                               // both trails get reinforced.
+    // Recruitment timeout: if no delivery happens in this many ticks the
+    // food channel is declared dead. foodFound flips back to false and
+    // worker spawning halts until a scout re-discovers food. Without this
+    // workers keep spawning into a evaporated trail and die uselessly.
+    recruitmentTimeout: 1200,
     // U-turn: workers on a fading trail flip 180° so they don't march into
     // oblivion. Triggered when the pheromone reading at the ant's current
     // cell is sharply lower than at its previous cell (a real-ant
@@ -79,9 +90,12 @@ window.AntSim = window.AntSim || {};
       // (set on the first successful delivery). `_recentHeadings` is a
       // ring buffer of headings captured from recent deliveries; worker
       // spawns pick one uniformly so multiple food sources each get
-      // workers heading toward them.
+      // workers heading toward them. `_ticksSinceDelivery` is reset to 0
+      // on each delivery and counts up otherwise — when it crosses
+      // `recruitmentTimeout`, the channel is declared dead.
       this.foodFound = false;
       this._recentHeadings = [];
+      this._ticksSinceDelivery = 0;
       this._spawnAccum = 0;
       this._scoutCount = 0;
       this._rng = Math.random;
@@ -96,6 +110,7 @@ window.AntSim = window.AntSim || {};
       this.antsDied = 0;
       this.foodFound = false;
       this._recentHeadings.length = 0;
+      this._ticksSinceDelivery = 0;
       this._spawnAccum = 0;
       this._scoutCount = 0;
     }
@@ -167,6 +182,7 @@ window.AntSim = window.AntSim || {};
           // the ant originally came from, which is roughly toward food.
           // Push into the ring buffer; trim oldest if over capacity.
           this.foodFound = true;
+          this._ticksSinceDelivery = 0;
           this._recentHeadings.push(ant.heading);
           if (this._recentHeadings.length > this.params.recruitMemory) {
             this._recentHeadings.shift();
@@ -183,6 +199,19 @@ window.AntSim = window.AntSim || {};
 
       this.pheromones.evaporate();
       this.pheromones.diffuse(this.params.diffusionRate);
+
+      // Recruitment timeout: if it's been too long since the last delivery,
+      // the food channel is dead — clear the recruitment state so workers
+      // stop spawning until scouts re-discover food. Without this we keep
+      // sending workers into an evaporated trail.
+      if (this.foodFound) {
+        this._ticksSinceDelivery++;
+        if (this._ticksSinceDelivery > this.params.recruitmentTimeout) {
+          this.foodFound = false;
+          this._recentHeadings.length = 0;
+          this._ticksSinceDelivery = 0;
+        }
+      }
     }
   }
 

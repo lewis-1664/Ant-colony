@@ -23,14 +23,18 @@ Working:
 - Place nest (one), food sources (many), walls (paint by drag), eraser
 - Ants spawn from nest, wander, find food, return, drop, repeat
 - Two pheromone grids (home + food), evaporation, deposit-strength decay
-- **Two-caste colony:** ~20% scouts (high wander, weak pheromone bias —
-  explore) and ~80% workers (low wander, strong bias — exploit). Scouts
-  spawn first so the colony bootstraps with explorers — see
+- **Two-caste colony:** ~30% scouts (pure explorers — ignore food
+  pheromone entirely while searching, walk near-ballistic paths) and
+  ~70% workers (low wander, strong pheromone bias — exploit trails).
+  Scouts spawn first so the colony bootstraps with explorers — see
   [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
 - **Recruitment:** workers don't spawn until a scout returns with food.
   Once one does, workers march out along the heading the scout came
   from. Recent delivery headings live in a small ring buffer so multiple
-  food sources can each get workers when both are productive — see
+  food sources can each get workers when both are productive. If no
+  delivery happens for a while (`recruitmentTimeout`, default 1200
+  ticks) the channel is declared dead and workers stop spawning until
+  scouts re-discover food — see
   [SPEC.md](SPEC.md#recruitment-workers-wait-for-scouts)
 - **U-turn on fading trail:** workers on a trail whose pheromone is
   dropping flip 180°, so the colony naturally abandons depleted routes —
@@ -64,10 +68,13 @@ starting Phase 2.** Likely next steps:
 
 - Ants can occasionally jitter when reflecting in tight obstacle pockets.
 - Food in Phase 1 is infinite; finite quantities arrive in Phase 2.
-- **Winner-take-all on multi-source.** Once one trail forms, scouts get
-  pulled into it (via snap-to-destination near food) and are unlikely to
-  discover a second source unless they happen to find it before the
-  first trail establishes. Real colonies show the same pattern.
+- **Bootstrap variance.** Pure-explorer scouts find food by random walk,
+  so the time-to-first-delivery is a coin flip with the food's distance.
+  Distant food can occasionally fail to bootstrap within the recruitment
+  timeout. Hit reset and try again, or place food closer to the nest.
+- **Winner-take-all on multi-source.** Once one trail forms, the first
+  scout to find the second source has to do so by random walk too, so
+  multi-source discovery is slow. Real colonies show the same pattern.
 
 ## File map
 
