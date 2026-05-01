@@ -106,6 +106,26 @@ a role change. A scout carrying food still has high `wander`; many die
 before delivering, but their food deposits help bootstrap the trail for
 the workers behind them.
 
+## Snap-to-destination
+
+When an ant is within `snapDist` (~32 px) of its current target — nest
+for carriers, food for searchers — pheromone-based steering is bypassed
+and heading is set directly at the target. Wander still applies, scaled
+down so the ant doesn't oscillate.
+
+This stops the "drift past destination" failure mode: an ant on a tight
+gradient often missed the trigger radius by a few pixels, deposited
+pheromone past the target, and the deposit became a phantom trail
+extension that other ants then reinforced. With snap, ants reliably
+enter the target's trigger radius even when their heading was sweeping
+slightly off-axis.
+
+It is a small departure from pure stigmergy near targets, but it matches
+biology — real ants visually orient to nest entrances at close range.
+The benefit is large: in the canonical test (nest at 250x400, food at
+800x400) deliveries went from ~150 to ~600 over 12k ticks, with mortality
+roughly halved.
+
 ## Mortality (ant lifespan)
 
 Each ant has a `lifeRemaining` counter (default `lifespan = 3000` ticks).

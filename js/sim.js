@@ -27,6 +27,13 @@ window.AntSim = window.AntSim || {};
     scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (weak)
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
+    // Snap-to-destination: when an ant is within snapDist of its current
+    // target (nest for carriers, food for searchers), heading is steered
+    // directly at the target instead of via the pheromone gradient. Without
+    // this, ants on a tight gradient often drift past the destination by a
+    // few pixels, deposit pheromone past it, and create a phantom trail
+    // extension that other ants then reinforce.
+    snapDist: 32,
     // Lifespan: ticks an ant has before dying. Reset on visiting the nest or
     // a food source — each leg of the round trip has its own time budget.
     // This is the system's selection pressure: carriers that can't find their

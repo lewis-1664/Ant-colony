@@ -27,6 +27,10 @@ Working:
   explore) and ~80% workers (low wander, strong bias — exploit). Scouts
   spawn first so the colony bootstraps with explorers — see
   [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
+- **Snap-to-destination:** within ~32 px of nest/food, ants steer
+  directly at the target instead of via pheromone. Stops the "drift past
+  destination → phantom trail" failure — see
+  [SPEC.md](SPEC.md#snap-to-destination)
 - **Mortality:** ants that fail to reach the nest or food within `lifespan`
   ticks die. Keeps the colony from deadlocking on stuck carriers —
   see [SPEC.md](SPEC.md#mortality-ant-lifespan)

@@ -43,6 +43,33 @@ window.AntSim = window.AntSim || {};
     return ant.hasFood ? pher.sampleHome(cx, cy) : pher.sampleFood(cx, cy);
   }
 
+  // Returns true if the ant is within snapDist of a relevant target and the
+  // heading has been overridden to aim straight at it. Carriers snap to the
+  // nest; searchers snap to the nearest food source. Stops the "drift past
+  // destination → phantom trail" failure mode where ants on a tight
+  // gradient miss the trigger radius and lay deposits past the target.
+  function snapToDestination(ant, world, snapDist) {
+    const r2 = snapDist * snapDist;
+    if (ant.hasFood) {
+      if (!world.nest) return false;
+      const dx = world.nest.x - ant.x, dy = world.nest.y - ant.y;
+      if (dx * dx + dy * dy < r2) {
+        ant.heading = Math.atan2(dy, dx);
+        return true;
+      }
+    } else {
+      for (const f of world.foodSources) {
+        if (f.amount <= 0) continue;
+        const dx = f.x - ant.x, dy = f.y - ant.y;
+        if (dx * dx + dy * dy < r2) {
+          ant.heading = Math.atan2(dy, dx);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // One-tick update for a single ant.
   // Returns 'delivered' on food drop-off, 'died' when lifespan expires, else undefined.
   function tickAnt(ant, world, pher, p, rng) {
@@ -52,21 +79,29 @@ window.AntSim = window.AntSim || {};
     const turnStrength = isScout ? p.scoutTurnStrength : p.workerTurnStrength;
     const wander       = isScout ? p.scoutWander       : p.workerWander;
 
-    // 1. Three-sensor read. Strongest sample steers the turn; equal/none → wander only.
-    const left  = sense(ant, pher, -p.sensorAngle, p.sensorDist);
-    const fwd   = sense(ant, pher,  0,             p.sensorDist);
-    const right = sense(ant, pher,  p.sensorAngle, p.sensorDist);
-
-    if (fwd >= left && fwd >= right) {
-      // already heading toward strongest — only wander
-    } else if (left > right) {
-      ant.heading -= turnStrength;
-    } else if (right > left) {
-      ant.heading += turnStrength;
+    // 1a. Snap-to-destination overrides pheromone steering when very close
+    //     to the relevant target. Sensors are skipped — heading is set
+    //     directly. Wander still applies, just at a tiny scale so the ant
+    //     doesn't oscillate.
+    if (snapToDestination(ant, world, p.snapDist)) {
+      ant.heading += (rng() * 2 - 1) * wander * 0.25;
     } else {
-      ant.heading += (rng() < 0.5 ? -1 : 1) * turnStrength;
+      // 1b. Three-sensor read. Strongest sample steers the turn; equal/none → wander only.
+      const left  = sense(ant, pher, -p.sensorAngle, p.sensorDist);
+      const fwd   = sense(ant, pher,  0,             p.sensorDist);
+      const right = sense(ant, pher,  p.sensorAngle, p.sensorDist);
+
+      if (fwd >= left && fwd >= right) {
+        // already heading toward strongest — only wander
+      } else if (left > right) {
+        ant.heading -= turnStrength;
+      } else if (right > left) {
+        ant.heading += turnStrength;
+      } else {
+        ant.heading += (rng() < 0.5 ? -1 : 1) * turnStrength;
+      }
+      ant.heading += (rng() * 2 - 1) * wander;
     }
-    ant.heading += (rng() * 2 - 1) * wander;
 
     // 2. Try to move. If blocked, attempt up to 8 random deflections; if all
     //    fail, flip and skip move (rare — only happens when sealed in walls).
