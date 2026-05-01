@@ -36,6 +36,27 @@ window.AntSim = window.AntSim || {};
     }
   }
 
+  // True if a step to (nx, ny) would land outside the canvas or in a wall.
+  function canStep(world, nx, ny) {
+    return (
+      nx >= 1 && ny >= 1 &&
+      nx < world.width - 1 && ny < world.height - 1 &&
+      !world.obstacleAtWorld(nx, ny)
+    );
+  }
+
+  // True if the cell at (x + cos*d, y + sin*d) for the given heading is a
+  // wall or out of bounds — used by wall-avoidance vision.
+  function wallAhead(world, x, y, heading, dist) {
+    const tx = x + Math.cos(heading) * dist;
+    const ty = y + Math.sin(heading) * dist;
+    return (
+      tx < 1 || ty < 1 ||
+      tx >= world.width - 1 || ty >= world.height - 1 ||
+      world.obstacleAtWorld(tx, ty)
+    );
+  }
+
   // Sample the pheromone grid the ant should *follow* (opposite of what it deposits)
   // at a sensor point ahead-and-offset of the ant's heading.
   function sense(ant, pher, angleOffset, dist) {
@@ -138,31 +159,54 @@ window.AntSim = window.AntSim || {};
       ant.heading += (rng() * 2 - 1) * wander;
     }
 
-    // 2. Try to move. If blocked, attempt up to 8 random deflections; if all
-    //    fail, flip and skip move (rare — only happens when sealed in walls).
+    // 2a. Wall-avoidance vision. Probe the forward arc and steer away from
+    //     walls *before* colliding. Ants without this rule run into
+    //     corners and burn ticks bouncing off random reflections; with it
+    //     they slide smoothly along walls.
+    {
+      const wd = p.wallSenseDist;
+      const wa = p.wallSenseAngle;
+      const fa = ant.heading;
+      const fAhead = wallAhead(world, ant.x, ant.y, fa, wd);
+      if (fAhead) {
+        const lAhead = wallAhead(world, ant.x, ant.y, fa - wa, wd);
+        const rAhead = wallAhead(world, ant.x, ant.y, fa + wa, wd);
+        if (!lAhead && rAhead)        ant.heading -= p.wallAvoidTurn;
+        else if (lAhead && !rAhead)   ant.heading += p.wallAvoidTurn;
+        else if (!lAhead && !rAhead)  ant.heading += (rng() < 0.5 ? -1 : 1) * p.wallAvoidTurn;
+        // else flanked — fall through to collision logic below.
+      }
+    }
+
+    // 2b. Try to move. If blocked, try gentle deflections first (slide
+    //     along the wall) before resorting to large random turns. This
+    //     keeps ants from getting stuck oscillating at convex corners.
     const speed = p.speed;
     let nx = ant.x + Math.cos(ant.heading) * speed;
     let ny = ant.y + Math.sin(ant.heading) * speed;
 
-    if (
-      nx < 1 || ny < 1 ||
-      nx >= world.width - 1 || ny >= world.height - 1 ||
-      world.obstacleAtWorld(nx, ny)
-    ) {
-      let found = false;
-      for (let i = 0; i < 8; i++) {
-        const turn = (rng() * Math.PI) + Math.PI / 2;
-        const sign = rng() < 0.5 ? -1 : 1;
-        ant.heading += sign * turn;
-        nx = ant.x + Math.cos(ant.heading) * speed;
-        ny = ant.y + Math.sin(ant.heading) * speed;
-        if (
-          nx >= 1 && ny >= 1 &&
-          nx < world.width - 1 && ny < world.height - 1 &&
-          !world.obstacleAtWorld(nx, ny)
-        ) { found = true; break; }
+    if (!canStep(world, nx, ny)) {
+      const deflections = [
+        Math.PI / 6, -Math.PI / 6,
+        Math.PI / 4, -Math.PI / 4,
+        Math.PI / 3, -Math.PI / 3,
+        Math.PI / 2, -Math.PI / 2,
+        2 * Math.PI / 3, -2 * Math.PI / 3,
+      ];
+      let resolved = false;
+      for (let i = 0; i < deflections.length; i++) {
+        const h = ant.heading + deflections[i];
+        const tx = ant.x + Math.cos(h) * speed;
+        const ty = ant.y + Math.sin(h) * speed;
+        if (canStep(world, tx, ty)) {
+          ant.heading = h;
+          nx = tx; ny = ty;
+          resolved = true;
+          break;
+        }
       }
-      if (!found) {
+      if (!resolved) {
+        // Truly cornered — flip and skip the move this tick.
         ant.heading += Math.PI;
         return;
       }
@@ -175,21 +219,21 @@ window.AntSim = window.AntSim || {};
     else if (ant.heading >= TWO_PI) ant.heading -= TWO_PI;
 
     // 3. Deposit on the *opposite* grid from the one we follow.
-    //    Searching scouts deposit NOTHING — they're pure observers. If
-    //    they laid home pheromone on the way out, every scout's
-    //    near-ballistic outbound path would become a radial spoke and
-    //    the home field would devolve into a starburst that confuses the
-    //    first carrier trying to return. Carrying scouts still deposit
-    //    food, which is what seeds the trail for workers to pick up.
+    //    Searching scouts deposit home but at scoutDepositMul (default 30%)
+    //    so their many radial paths blend into a faint halo rather than a
+    //    sharp starburst that would confuse the first carrier. Carrying
+    //    scouts deposit food at full strength — the food trail back from
+    //    food is what workers will lock onto.
     ant.depositStrength *= p.depositDecay;
     if (ant.depositStrength < 0.01) ant.depositStrength = 0.01;
-    const amount = p.depositRate * ant.depositStrength;
     const cx = Math.floor(ant.x / CELL_SIZE);
     const cy = Math.floor(ant.y / CELL_SIZE);
+    const baseAmount = p.depositRate * ant.depositStrength;
     if (ant.hasFood) {
-      pher.depositFood(cx, cy, amount);
-    } else if (!isScout) {
-      pher.depositHome(cx, cy, amount);
+      pher.depositFood(cx, cy, baseAmount);
+    } else {
+      const mul = isScout ? p.scoutDepositMul : 1.0;
+      pher.depositHome(cx, cy, baseAmount * mul);
     }
 
     // 4. State transitions and lifespan.

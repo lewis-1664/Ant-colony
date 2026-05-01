@@ -32,8 +32,16 @@ window.AntSim = window.AntSim || {};
     // is lower than the original tuning — scouts walk straighter so each
     // one covers more ground before its lifespan runs out.
     scoutFraction: 0.30,
-    scoutWander: 0.08,        // rad per tick — small noise, near-ballistic walks
+    scoutWander: 0.08,        // rad per tick — small noise, near-ballistic
+                              // walks so scouts cover distance from the nest
+                              // before their lifespan runs out
     scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (carriers only)
+    scoutDepositMul: 0.3,     // scouts deposit at 30% strength while searching.
+                              // They still lay home pheromone (real ant
+                              // behaviour) but faintly — diffusion smooths
+                              // these into a soft halo around the nest rather
+                              // than sharp radial spokes. Worker deposits at
+                              // full strength dominate once the trail forms.
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Snap-to-destination: when an ant is within snapDist of its current
@@ -60,6 +68,15 @@ window.AntSim = window.AntSim || {};
     // worker spawning halts until a scout re-discovers food. Without this
     // workers keep spawning into a evaporated trail and die uselessly.
     recruitmentTimeout: 1200,
+    // Wall-avoidance "vision": ants probe their forward arc each tick and
+    // steer away from walls before they collide. Three sample points (left
+    // / forward / right) at wallSenseDist; if forward is blocked, turn
+    // toward whichever side is open. Without this ants run into wall
+    // corners and rely on the random-deflection reflection logic, which
+    // gets them stuck looping in tight pockets.
+    wallSenseDist: 8,         // px ahead — slightly more than one cell
+    wallSenseAngle: 0.45,     // ± rad off-axis for left/right wall sensors
+    wallAvoidTurn: 0.5,       // rad per tick steering away from a sensed wall
     // U-turn: workers on a fading trail flip 180° so they don't march into
     // oblivion. Triggered when the pheromone reading at the ant's current
     // cell is sharply lower than at its previous cell (a real-ant

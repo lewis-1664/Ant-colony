@@ -24,10 +24,16 @@ Working:
 - Ants spawn from nest, wander, find food, return, drop, repeat
 - Two pheromone grids (home + food), evaporation, deposit-strength decay
 - **Two-caste colony:** ~30% scouts (pure explorers — ignore food
-  pheromone, deposit nothing while searching, walk near-ballistic
+  pheromone, deposit home at 30% strength so their many paths blend
+  into a faint halo rather than radial spokes, walk near-ballistic
   paths) and ~70% workers (low wander, strong pheromone bias — exploit
   trails). Scouts spawn first so the colony bootstraps with explorers —
   see [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
+- **Wall-avoidance vision:** ants probe a short forward arc each tick
+  and steer away from walls before colliding. Collisions that still
+  happen try gentle deflections first so ants slide along wall edges
+  instead of getting stuck at corners — see
+  [SPEC.md](SPEC.md#wall-avoidance-vision-and-corner-sliding)
 - **Recruitment:** workers don't spawn until a scout returns with food.
   Once one does, workers march out along the heading the scout came
   from. Recent delivery headings live in a small ring buffer so multiple

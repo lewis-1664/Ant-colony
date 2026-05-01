@@ -70,10 +70,13 @@ knowledge.
 Two grids: `home` and `food`. Cell size **4 px** (1000×800 canvas → 250×200
 grid).
 
-- **Worker searching** (no food) deposits **home**, follows **food**.
-- **Any carrier** (carrying food) deposits **food**, follows **home**.
-- **Scout searching** deposits **nothing**. Scouts are pure observers
-  while exploring — see the scout caste section below for why.
+- **Worker searching** (no food) deposits **home** at full strength,
+  follows **food**.
+- **Any carrier** (carrying food) deposits **food** at full strength,
+  follows **home**.
+- **Scout searching** deposits **home at `scoutDepositMul` × full
+  strength** (default 30%). Scouts ignore food pheromone while
+  searching — see the scout caste section below for why.
 
 Each ant carries a `depositStrength` that decays each tick toward zero and
 resets to `1.0` when it touches a food source or the nest. Multiplying
@@ -128,16 +131,16 @@ ignoring food pheromone keeps them spread radially around the nest,
 so the colony covers more ground and is less likely to lock into a
 chase-loop during bootstrap.
 
-**Why scouts deposit nothing while searching:** with low `scoutWander`,
-each scout walks roughly ballistically out from the nest. If they laid
-home pheromone on the way out, every scout would create a radial spoke
-and the home field would devolve into a starburst that confuses the
-first carrier trying to return. Carriers see strong home pheromone in
-many directions (every scout's outbound path), so the gradient at any
-point in the field is bumpy and sensor steering picks the wrong trail.
-Removing scout outbound deposits leaves the home field clean — only
-worker-laid trails contribute, and the gradient is smooth and
-unambiguous.
+**Why scouts deposit home faintly:** with low `scoutWander`, each scout
+walks roughly ballistically out from the nest. If they laid home
+pheromone at full strength, every scout would create a sharp radial
+spoke and the home field would devolve into a starburst that confuses
+the first carrier trying to return. At 30% strength their deposits
+diffuse into a soft halo around the nest rather than sharp spokes, and
+worker deposits at full strength dominate once a trail is established.
+This preserves the realistic "scouts lay pheromone too" behaviour
+without the field becoming dominated by their many criss-crossing
+paths.
 
 **Cost of pure-explorer scouts:** bootstrap variance is real. Scouts
 find food by random encounter only, and the first scout carrier has to
@@ -241,6 +244,22 @@ budget rather than forcing one journey to fit in `lifespan` ticks. This
 makes bootstrapping more reliable: the very first scout has `lifespan`
 ticks to find food, and once they pick up they get a fresh budget to find
 home.
+
+## Wall-avoidance vision and corner sliding
+
+Each tick, before attempting a move, ants probe a short forward arc
+(`wallSenseDist`, default 8 px; `wallSenseAngle`, default ±0.45 rad)
+for walls or canvas boundaries. If the forward sample is blocked but a
+side sample is open, heading is nudged toward the open side
+(`wallAvoidTurn` ≈ 0.5 rad). This is the "vision" component — ants see
+walls slightly ahead and steer.
+
+Despite vision, collisions still happen at sharp corners. The collision
+fallback now tries a sequence of small deflections (±π/6, ±π/4, ±π/3,
+±π/2, ±2π/3) before giving up and flipping 180°. Small turns succeed
+first, so the ant slides along the wall edge instead of bouncing
+randomly in the corner pocket. This eliminated the "ants pile up at
+the inside of a wall corner" bug.
 
 ## Phased plan
 
