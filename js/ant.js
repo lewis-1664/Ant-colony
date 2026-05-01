@@ -175,13 +175,22 @@ window.AntSim = window.AntSim || {};
     else if (ant.heading >= TWO_PI) ant.heading -= TWO_PI;
 
     // 3. Deposit on the *opposite* grid from the one we follow.
+    //    Searching scouts deposit NOTHING — they're pure observers. If
+    //    they laid home pheromone on the way out, every scout's
+    //    near-ballistic outbound path would become a radial spoke and
+    //    the home field would devolve into a starburst that confuses the
+    //    first carrier trying to return. Carrying scouts still deposit
+    //    food, which is what seeds the trail for workers to pick up.
     ant.depositStrength *= p.depositDecay;
     if (ant.depositStrength < 0.01) ant.depositStrength = 0.01;
+    const amount = p.depositRate * ant.depositStrength;
     const cx = Math.floor(ant.x / CELL_SIZE);
     const cy = Math.floor(ant.y / CELL_SIZE);
-    const amount = p.depositRate * ant.depositStrength;
-    if (ant.hasFood) pher.depositFood(cx, cy, amount);
-    else             pher.depositHome(cx, cy, amount);
+    if (ant.hasFood) {
+      pher.depositFood(cx, cy, amount);
+    } else if (!isScout) {
+      pher.depositHome(cx, cy, amount);
+    }
 
     // 4. State transitions and lifespan.
     // Reaching the nest or food refreshes the ant's life — each leg of the

@@ -70,8 +70,10 @@ knowledge.
 Two grids: `home` and `food`. Cell size **4 px** (1000×800 canvas → 250×200
 grid).
 
-- **Searching ant** (no food) deposits **home**, follows **food**.
-- **Returning ant** (carrying food) deposits **food**, follows **home**.
+- **Worker searching** (no food) deposits **home**, follows **food**.
+- **Any carrier** (carrying food) deposits **food**, follows **home**.
+- **Scout searching** deposits **nothing**. Scouts are pure observers
+  while exploring — see the scout caste section below for why.
 
 Each ant carries a `depositStrength` that decays each tick toward zero and
 resets to `1.0` when it touches a food source or the nest. Multiplying
@@ -124,10 +126,24 @@ all the other searching scouts immediately follow it — chasing the
 carrier in a tight loop instead of continuing to explore. Scouts
 ignoring food pheromone keeps them spread radially around the nest,
 so the colony covers more ground and is less likely to lock into a
-chase-loop during bootstrap. The cost is some bootstrap variance:
-scouts find food by random encounter only, so distant food sources
-take longer to discover and occasionally a run fails to bootstrap
-within the recruitment timeout.
+chase-loop during bootstrap.
+
+**Why scouts deposit nothing while searching:** with low `scoutWander`,
+each scout walks roughly ballistically out from the nest. If they laid
+home pheromone on the way out, every scout would create a radial spoke
+and the home field would devolve into a starburst that confuses the
+first carrier trying to return. Carriers see strong home pheromone in
+many directions (every scout's outbound path), so the gradient at any
+point in the field is bumpy and sensor steering picks the wrong trail.
+Removing scout outbound deposits leaves the home field clean — only
+worker-laid trails contribute, and the gradient is smooth and
+unambiguous.
+
+**Cost of pure-explorer scouts:** bootstrap variance is real. Scouts
+find food by random encounter only, and the first scout carrier has to
+home in by initial heading + low wander + snap-to-nest, with no
+pheromone help. Most succeed. Some don't, and the run fails to
+bootstrap within the recruitment timeout. Hit Reset and try again.
 
 ## Recruitment (workers wait for scouts)
 
