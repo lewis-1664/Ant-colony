@@ -168,12 +168,13 @@ window.AntSim = window.AntSim || {};
     }
 
     // 2a. Wall-avoidance vision. Probe the forward arc and steer away from
-    //     walls *before* colliding. Ants without this rule run into
-    //     corners and burn ticks bouncing off random reflections; with it
-    //     they slide smoothly along walls.
+    //     walls *before* colliding. Scouts use a longer range and wider
+    //     arc so they see walls earlier and have more time to turn —
+    //     without this they bump off walls during exploration and waste
+    //     ticks recovering from collisions.
     {
-      const wd = p.wallSenseDist;
-      const wa = p.wallSenseAngle;
+      const wd = isScout ? p.scoutWallSenseDist : p.wallSenseDist;
+      const wa = isScout ? p.scoutWallSenseAngle : p.wallSenseAngle;
       const fa = ant.heading;
       const fAhead = wallAhead(world, ant.x, ant.y, fa, wd);
       if (fAhead) {

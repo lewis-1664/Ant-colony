@@ -306,6 +306,13 @@ side sample is open, heading is nudged toward the open side
 (`wallAvoidTurn` ≈ 0.5 rad). This is the "vision" component — ants see
 walls slightly ahead and steer.
 
+Scouts use a longer-range, wider-arc version (`scoutWallSenseDist`
+≈ 20 px ≈ 2.5× workers, `scoutWallSenseAngle` ≈ ±0.75 rad). They're
+the long-sighted exploration caste, so they need to see walls earlier
+to turn smoothly during exploration rather than bumping off them and
+losing ticks to collision recovery. Workers stay on established trails
+and don't need the same look-ahead.
+
 Despite vision, collisions still happen at sharp corners. The collision
 fallback now tries a sequence of small deflections (±π/6, ±π/4, ±π/3,
 ±π/2, ±2π/3) before giving up and flipping 180°. Small turns succeed

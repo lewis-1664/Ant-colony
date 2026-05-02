@@ -128,9 +128,15 @@ window.AntSim = window.AntSim || {};
     // toward whichever side is open. Without this ants run into wall
     // corners and rely on the random-deflection reflection logic, which
     // gets them stuck looping in tight pockets.
+    //
+    // Scouts get a longer-range and wider-arc version because they're the
+    // long-sighted exploration caste — without it they bump off walls a
+    // lot during exploration, wasting ticks on collision recovery.
     wallSenseDist: 8,         // px ahead — slightly more than one cell
     wallSenseAngle: 0.45,     // ± rad off-axis for left/right wall sensors
     wallAvoidTurn: 0.5,       // rad per tick steering away from a sensed wall
+    scoutWallSenseDist: 20,   // ~2.5× workers' range
+    scoutWallSenseAngle: 0.75,// wider arc — catches walls slightly to the side
     // U-turn: workers on a fading trail flip 180° so they don't march into
     // oblivion. Triggered when the pheromone reading at the ant's current
     // cell is sharply lower than at its previous cell (a real-ant
