@@ -6,6 +6,13 @@ window.AntSim = window.AntSim || {};
 
   const { World, PheromoneGrid, Ant, tickAnt } = AntSim;
 
+  // Smallest unsigned angular distance between two headings (radians).
+  function angularDist(a, b) {
+    let d = Math.abs(a - b) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    return d;
+  }
+
   // Default tunables. Phase 2 will expose more of these via sliders.
   const DEFAULT_PARAMS = {
     speed: 1.0,           // px per tick
@@ -25,23 +32,28 @@ window.AntSim = window.AntSim || {};
     // Without this split, every ant wanders randomly and the pheromone
     // field is dominated by noise — workers can't lock onto trails because
     // there's no clear gradient to lock onto.
-    // Scout caste: pure explorers. They ignore food pheromone entirely
-    // when searching (see ant.js), so scoutTurnStrength is only used by
-    // scout *carriers* heading home. With pure exploration, bootstrap
-    // depends on random walks, so scoutFraction is higher and scoutWander
-    // is lower than the original tuning — scouts walk straighter so each
-    // one covers more ground before its lifespan runs out.
-    scoutFraction: 0.30,
-    scoutWander: 0.08,        // rad per tick — small noise, near-ballistic
-                              // walks so scouts cover distance from the nest
-                              // before their lifespan runs out
-    scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (carriers only)
-    scoutDepositMul: 0.3,     // scouts deposit at 30% strength while searching.
-                              // They still lay home pheromone (real ant
-                              // behaviour) but faintly — diffusion smooths
-                              // these into a soft halo around the nest rather
-                              // than sharp radial spokes. Worker deposits at
-                              // full strength dominate once the trail forms.
+    // Scout caste: a small number of long-sighted explorers. Scouts now
+    // follow food pheromone (so they can pick up established trails and
+    // navigate around new obstacles when foragers can't), but with weak
+    // turnStrength so they keep exploring rather than locking onto a
+    // single trail. Their sensor reach is longer than workers' so they
+    // detect food and trails from further away. Fewer of them than
+    // before (15% vs 30%) so the home field doesn't become a starburst,
+    // and their deposits are stronger so the few they make are clear.
+    scoutFraction: 0.15,
+    scoutWander: 0.08,        // rad per tick — small noise, near-ballistic.
+                              // With only 15% scouts, each one needs to
+                              // cover real distance during bootstrap, so
+                              // their walks must stay roughly straight.
+    scoutTurnStrength: 0.18,  // rad per tick toward strongest sensor (weak,
+                              // for both searching and carrying)
+    scoutSensorDist: 22,      // px ahead — longer than workers' so scouts
+                              // detect food and trails from greater distance
+    scoutDepositMul: 0.8,     // scouts deposit at 80% strength. With fewer
+                              // scouts the field is no longer a starburst,
+                              // so their deposits can be louder — this
+                              // makes the trail laid by the first carrier
+                              // clear enough to retrace.
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Snap-to-destination: when an ant is within snapDist of its current
@@ -63,6 +75,13 @@ window.AntSim = window.AntSim || {};
                               // With multiple food sources, workers spawn
                               // along a randomly-chosen recent heading, so
                               // both trails get reinforced.
+    recruitNewDirThreshold: 0.8,  // rad — a delivery whose heading is more
+                                  // than this far from every existing entry
+                                  // is treated as a "new direction" and
+                                  // overwrites half the buffer with itself,
+                                  // so it gets immediate worker
+                                  // representation instead of being
+                                  // outvoted by an established trail.
     // Recruitment timeout: if no delivery happens in this many ticks the
     // food channel is declared dead. foodFound flips back to false and
     // worker spawning halts until a scout re-discovers food. Without this
@@ -197,13 +216,28 @@ window.AntSim = window.AntSim || {};
           // Capture recruitment state. ant.heading after a successful drop
           // has been flipped 180°, so it now points outward — the direction
           // the ant originally came from, which is roughly toward food.
-          // Push into the ring buffer; trim oldest if over capacity.
           this.foodFound = true;
           this._ticksSinceDelivery = 0;
-          this._recentHeadings.push(ant.heading);
-          if (this._recentHeadings.length > this.params.recruitMemory) {
-            this._recentHeadings.shift();
+          const buf = this._recentHeadings;
+          // If this delivery's heading is far from every existing entry,
+          // treat it as a "new direction" (i.e. a different food source or
+          // a re-routed trail) and overwrite half the buffer with it. This
+          // gives the new direction immediate worker representation
+          // instead of letting the established trail outvote it 7-to-1.
+          const threshold = this.params.recruitNewDirThreshold;
+          let isNewDir = buf.length > 0;
+          for (let k = 0; k < buf.length; k++) {
+            if (angularDist(buf[k], ant.heading) <= threshold) {
+              isNewDir = false;
+              break;
+            }
           }
+          if (isNewDir) {
+            const replace = Math.ceil(buf.length / 2);
+            for (let k = 0; k < replace; k++) buf[k] = ant.heading;
+          }
+          buf.push(ant.heading);
+          if (buf.length > this.params.recruitMemory) buf.shift();
         }
         if (r === 'died') {
           this.antsDied++;

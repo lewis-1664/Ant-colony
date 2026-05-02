@@ -100,15 +100,14 @@ roughly double on the canonical test versus no diffusion).
 
 Every ant is one of two roles, fixed at spawn:
 
-- **Scout** — pure explorer. Ignores food pheromone entirely while
-  searching: when `!hasFood`, sensor-based steering is skipped and the
-  ant moves on wander alone. Carrying food it falls back to home-
-  pheromone steering and snap, so it can still get home. Default
-  `scoutWander` is small (~0.08 rad/tick) so each scout walks roughly
-  ballistically and covers as much distance as possible before its
-  lifespan runs out.
-- **Worker** — small `wander`, strong pheromone-following bias. Sticks
-  tight to existing trails and exploits them.
+- **Scout** — long-sighted, weakly-steered explorer. Uses the same
+  sensor-based steering as workers but with `scoutSensorDist` (~22 px,
+  ~2× workers) for longer detection range, and `scoutTurnStrength`
+  (~0.18, ~3× weaker than workers) so they keep exploring rather than
+  locking onto a trail. Default `scoutWander` is small (~0.08 rad/tick)
+  so each scout walks near-ballistically and covers distance.
+- **Worker** — short-sighted, strongly-steered exploiter. Small
+  `wander`, strong pheromone bias. Sticks tight to existing trails.
 
 `scoutFraction` of `maxAnts` are scouts; the rest are workers. Scouts
 spawn first up to quota, so the colony bootstraps with explorers before
@@ -123,30 +122,29 @@ a role change. A scout carrying food gets to use sensor steering again
 to home in, but its low `wander` means it tracks fairly straight back
 along its outbound path.
 
-**Why scouts ignore food pheromone:** without this, the very first
-scout to find food becomes a carrier laying a fresh food trail, and
-all the other searching scouts immediately follow it — chasing the
-carrier in a tight loop instead of continuing to explore. Scouts
-ignoring food pheromone keeps them spread radially around the nest,
-so the colony covers more ground and is less likely to lock into a
-chase-loop during bootstrap.
+**Why fewer, louder scouts:** with too many scouts, their many radial
+outbound paths overwhelm the home field with noise and the first
+carrier to return gets confused by spurious gradient peaks. With too
+few, discovery rate drops and bootstrap fails. The current default
+(15% scouts, 80% deposit strength) is the sweet spot: a single scout's
+outbound path is clear enough to retrace as a carrier, and there are
+enough scouts that some reach distant food within their lifespan.
 
-**Why scouts deposit home faintly:** with low `scoutWander`, each scout
-walks roughly ballistically out from the nest. If they laid home
-pheromone at full strength, every scout would create a sharp radial
-spoke and the home field would devolve into a starburst that confuses
-the first carrier trying to return. At 30% strength their deposits
-diffuse into a soft halo around the nest rather than sharp spokes, and
-worker deposits at full strength dominate once a trail is established.
-This preserves the realistic "scouts lay pheromone too" behaviour
-without the field becoming dominated by their many criss-crossing
-paths.
+**Why scouts follow food pheromone too (weakly):** earlier we tried
+scouts that ignored food pheromone entirely. That avoided chase-loops
+on first discovery, but it also meant scouts couldn't navigate
+established trails — important when a wall is placed mid-trail and
+foragers can't find their way around it because they don't explore.
+Scouts now use sensor steering with weak `turnStrength` so they pick
+up established trails (and re-route around new obstacles) but mostly
+keep wandering rather than locking on.
 
-**Cost of pure-explorer scouts:** bootstrap variance is real. Scouts
-find food by random encounter only, and the first scout carrier has to
-home in by initial heading + low wander + snap-to-nest, with no
-pheromone help. Most succeed. Some don't, and the run fails to
-bootstrap within the recruitment timeout. Hit Reset and try again.
+**Cost: bootstrap variance.** Scouts still find food by approximate
+random walk during bootstrap, and the first scout carrier has to
+retrace its own faint outbound trail. Most runs succeed (single source
+canonical: ~2 of 3 runs deliver 1000+ in 12k ticks, with very low
+death counts when they do); some bootstrap fails. Hit Reset and try
+again.
 
 ## Recruitment (workers wait for scouts)
 
@@ -170,11 +168,22 @@ A scout returning empty-handed refreshes its own life but doesn't flip
 `foodFound` — only deliveries count.
 
 Recent delivery headings are kept in a small ring buffer
-(`recentMemory`, 8 entries). Each worker spawn picks one heading
-uniformly at random. With one food source the buffer fills with the
-same direction; with multiple sources whose trails are both producing
-deliveries, both bearings get sampled in proportion to their
-throughput, so both trails are reinforced.
+(`recruitMemory`, 8 entries). Each worker spawn picks one heading
+uniformly at random.
+
+When a delivery comes in, the heading is checked against the buffer.
+If it differs from every existing entry by more than
+`recruitNewDirThreshold` (~0.8 rad, ~46°) it's flagged as a "new
+direction" and overwrites half the buffer with itself before being
+pushed. This stops winner-take-all: a single delivery from a new
+bearing immediately gets ~50% of the next worker spawns, instead of
+being outvoted 7-to-1 by the established trail. Subsequent deliveries
+from the same bearing reinforce normally.
+
+With this rule, multiple food sources can both be exploited as long as
+both produce deliveries. Bootstrapping a *second* source (when scouts
+have to discover it past an existing trail) is still variance-prone,
+but once discovered both trails get worker traffic.
 
 **Recruitment timeout.** A `_ticksSinceDelivery` counter resets to 0
 on each delivery and increments otherwise. If it crosses

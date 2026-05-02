@@ -128,24 +128,21 @@ window.AntSim = window.AntSim || {};
       }
     }
 
-    // 1a. Searching scouts are pure explorers — they ignore food pheromone
-    //     entirely. Without this, the first scout to find food and turn
-    //     into a carrier lays a trail that other scouts immediately follow,
-    //     producing a chase-loop instead of independent exploration. Scouts
-    //     carrying food still use snap + home steering to get back.
-    if (isScout && !ant.hasFood) {
-      ant.heading += (rng() * 2 - 1) * wander;
-    } else if (snapToDestination(ant, world, p.snapDist)) {
-      // 1b. Snap-to-destination overrides pheromone steering when very
-      //     close to the relevant target. Sensors are skipped — heading is
-      //     set directly. Wander still applies, just at a tiny scale so the
-      //     ant doesn't oscillate.
+    // 1. Snap-to-destination overrides pheromone steering when very close
+    //    to the relevant target. Otherwise, three-sensor read with role-
+    //    specific sensor distance + turn strength. Scouts use a longer
+    //    sensorDist so they detect food and trails from further away;
+    //    they have weaker turnStrength than workers so they keep
+    //    exploring rather than locking onto a trail. Both roles still
+    //    follow pheromone — that's how scouts find established trails
+    //    when new obstacles block the foragers' route.
+    if (snapToDestination(ant, world, p.snapDist)) {
       ant.heading += (rng() * 2 - 1) * wander * 0.25;
     } else {
-      // 1c. Three-sensor read. Strongest sample steers the turn; equal/none → wander only.
-      const left  = sense(ant, pher, -p.sensorAngle, p.sensorDist);
-      const fwd   = sense(ant, pher,  0,             p.sensorDist);
-      const right = sense(ant, pher,  p.sensorAngle, p.sensorDist);
+      const sd = isScout ? p.scoutSensorDist : p.sensorDist;
+      const left  = sense(ant, pher, -p.sensorAngle, sd);
+      const fwd   = sense(ant, pher,  0,             sd);
+      const right = sense(ant, pher,  p.sensorAngle, sd);
 
       if (fwd >= left && fwd >= right) {
         // already heading toward strongest — only wander

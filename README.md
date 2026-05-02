@@ -23,12 +23,13 @@ Working:
 - Place nest (one), food sources (many), walls (paint by drag), eraser
 - Ants spawn from nest, wander, find food, return, drop, repeat
 - Two pheromone grids (home + food), evaporation, deposit-strength decay
-- **Two-caste colony:** ~30% scouts (pure explorers — ignore food
-  pheromone, deposit home at 30% strength so their many paths blend
-  into a faint halo rather than radial spokes, walk near-ballistic
-  paths) and ~70% workers (low wander, strong pheromone bias — exploit
-  trails). Scouts spawn first so the colony bootstraps with explorers —
-  see [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
+- **Two-caste colony:** ~15% scouts (long-sighted with weak
+  pheromone-following, deposit home at 80% strength, walk near-
+  ballistic paths) and ~85% workers (short-sighted, strong pheromone
+  bias — exploit trails). Scouts spawn first so the colony bootstraps
+  with explorers, and they can also navigate established trails to
+  re-route around new obstacles when foragers can't — see
+  [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
 - **Wall-avoidance vision:** ants probe a short forward arc each tick
   and steer away from walls before colliding. Collisions that still
   happen try gentle deflections first so ants slide along wall edges
@@ -37,10 +38,12 @@ Working:
 - **Recruitment:** workers don't spawn until a scout returns with food.
   Once one does, workers march out along the heading the scout came
   from. Recent delivery headings live in a small ring buffer so multiple
-  food sources can each get workers when both are productive. If no
-  delivery happens for a while (`recruitmentTimeout`, default 1200
-  ticks) the channel is declared dead and workers stop spawning until
-  scouts re-discover food — see
+  food sources can each get workers when both are productive. A
+  delivery from a *new* direction overwrites half the buffer with
+  itself, so it immediately gets ~50% of subsequent worker spawns
+  rather than being outvoted by the established trail. If no delivery
+  happens for `recruitmentTimeout` (1200 ticks) the channel is declared
+  dead and workers stop spawning — see
   [SPEC.md](SPEC.md#recruitment-workers-wait-for-scouts)
 - **U-turn on fading trail:** workers on a trail whose pheromone is
   dropping flip 180°, so the colony naturally abandons depleted routes —
