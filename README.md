@@ -23,12 +23,13 @@ Working:
 - Place nest (one), food sources (many), walls (paint by drag), eraser
 - Ants spawn from nest, wander, find food, return, drop, repeat
 - Two pheromone grids (home + food), evaporation, deposit-strength decay
-- **Two-caste colony:** ~15% scouts (long-sighted with weak
-  pheromone-following, deposit home at 80% strength, walk near-
-  ballistic paths) and ~85% workers (short-sighted, strong pheromone
-  bias — exploit trails). Scouts spawn first so the colony bootstraps
-  with explorers, and they can also navigate established trails to
-  re-route around new obstacles when foragers can't — see
+- **Two-caste colony:** ~15% scouts (long-sighted, wide-eyed, weak
+  pheromone-following — wider sensor fan and snap radius than workers,
+  deposit home at 80% strength, walk near-ballistic paths) and ~85%
+  workers (short-sighted, strong pheromone bias — exploit trails).
+  Scouts spawn first so the colony bootstraps with explorers, and they
+  can also navigate established trails to re-route around new obstacles
+  when foragers can't — see
   [SPEC.md](SPEC.md#two-caste-colony-scouts-and-workers)
 - **Wall-avoidance vision:** ants probe a short forward arc each tick
   and steer away from walls before colliding. Collisions that still

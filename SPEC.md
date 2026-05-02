@@ -100,12 +100,15 @@ roughly double on the canonical test versus no diffusion).
 
 Every ant is one of two roles, fixed at spawn:
 
-- **Scout** — long-sighted, weakly-steered explorer. Uses the same
-  sensor-based steering as workers but with `scoutSensorDist` (~22 px,
-  ~2× workers) for longer detection range, and `scoutTurnStrength`
-  (~0.18, ~3× weaker than workers) so they keep exploring rather than
-  locking onto a trail. Default `scoutWander` is small (~0.08 rad/tick)
-  so each scout walks near-ballistically and covers distance.
+- **Scout** — long-sighted, wide-eyed, weakly-steered explorer. Sensor
+  fan is `scoutSensorAngle` (~0.85 rad ≈ ±49°, vs workers' ±29°) at
+  `scoutSensorDist` (~22 px, ~2× workers'), so scouts cover a much
+  wider arc and pick up faint trails before walking past them.
+  Their snap-to-food radius is also wider (`scoutSnapDist` ~60 px vs
+  workers' 32) so they don't sail past a food source unnoticed.
+  `scoutTurnStrength` (~0.18) is weaker so they keep exploring rather
+  than locking onto a trail. Default `scoutWander` is small (~0.08
+  rad/tick) so each scout walks near-ballistically and covers distance.
 - **Worker** — short-sighted, strongly-steered exploiter. Small
   `wander`, strong pheromone bias. Sticks tight to existing trails.
 

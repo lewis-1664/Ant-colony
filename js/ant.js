@@ -130,19 +130,21 @@ window.AntSim = window.AntSim || {};
 
     // 1. Snap-to-destination overrides pheromone steering when very close
     //    to the relevant target. Otherwise, three-sensor read with role-
-    //    specific sensor distance + turn strength. Scouts use a longer
-    //    sensorDist so they detect food and trails from further away;
-    //    they have weaker turnStrength than workers so they keep
-    //    exploring rather than locking onto a trail. Both roles still
-    //    follow pheromone — that's how scouts find established trails
-    //    when new obstacles block the foragers' route.
-    if (snapToDestination(ant, world, p.snapDist)) {
+    //    specific sensor distance, angle, and turn strength. Scouts have
+    //    a longer reach (sensorDist), wider fan (sensorAngle), and wider
+    //    snap radius — they're the long-sighted explorers — but weaker
+    //    turnStrength so they keep exploring rather than locking onto a
+    //    trail. Both roles follow pheromone, which is how scouts pick up
+    //    established trails to re-route around new obstacles.
+    const snapDist = isScout ? p.scoutSnapDist : p.snapDist;
+    const sensorAngle = isScout ? p.scoutSensorAngle : p.sensorAngle;
+    const sensorDist = isScout ? p.scoutSensorDist : p.sensorDist;
+    if (snapToDestination(ant, world, snapDist)) {
       ant.heading += (rng() * 2 - 1) * wander * 0.25;
     } else {
-      const sd = isScout ? p.scoutSensorDist : p.sensorDist;
-      const left  = sense(ant, pher, -p.sensorAngle, sd);
-      const fwd   = sense(ant, pher,  0,             sd);
-      const right = sense(ant, pher,  p.sensorAngle, sd);
+      const left  = sense(ant, pher, -sensorAngle, sensorDist);
+      const fwd   = sense(ant, pher,  0,           sensorDist);
+      const right = sense(ant, pher,  sensorAngle, sensorDist);
 
       if (fwd >= left && fwd >= right) {
         // already heading toward strongest — only wander

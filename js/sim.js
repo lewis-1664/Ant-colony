@@ -54,6 +54,15 @@ window.AntSim = window.AntSim || {};
                               // so their deposits can be louder — this
                               // makes the trail laid by the first carrier
                               // clear enough to retrace.
+    scoutSensorAngle: 0.85,   // ± rad off-axis for left/right sensors
+                              // (wider fan than workers — scouts cover a
+                              // wider arc so they're less likely to walk
+                              // past a faint trail without noticing it)
+    scoutSnapDist: 60,        // px — wider snap-to-food radius for scouts.
+                              // Workers only snap within 32 px, but scouts
+                              // are scanning for food and need to "see" it
+                              // from further so they don't walk straight
+                              // past sources during exploration.
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Snap-to-destination: when an ant is within snapDist of its current
