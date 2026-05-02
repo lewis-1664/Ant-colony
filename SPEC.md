@@ -188,6 +188,22 @@ both produce deliveries. Bootstrapping a *second* source (when scouts
 have to discover it past an existing trail) is still variance-prone,
 but once discovered both trails get worker traffic.
 
+**Worker re-launching at the nest.** When a worker delivers, it doesn't
+just bump off the nest rim and head back the same way it came. Instead
+it's snapped to the nest centre and given a fresh heading sampled from
+the recruitment buffer (with the usual jitter) — the same as a brand-
+new spawn. Visually this looks like the ant going *into* the nest and
+then heading back out; mechanically it means returning foragers rotate
+through whatever food trails are currently being reinforced. With two
+active sources whose headings are both in the buffer, a worker just
+back from source A has a roughly 50/50 chance of being sent to source
+B next trip. Without this, every worker sticks to the source it first
+walked to, and a colony with two active trails never rebalances.
+
+Scouts keep their post-flip heading on delivery — they're explorers,
+not foragers, so going back toward the source they discovered (and
+maybe wandering off it on the way) is the right behaviour for them.
+
 **Recruitment timeout.** A `_ticksSinceDelivery` counter resets to 0
 on each delivery and increments otherwise. If it crosses
 `recruitmentTimeout` (default 1200), the food channel is declared dead:

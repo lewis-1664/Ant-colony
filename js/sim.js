@@ -247,6 +247,25 @@ window.AntSim = window.AntSim || {};
           }
           buf.push(ant.heading);
           if (buf.length > this.params.recruitMemory) buf.shift();
+
+          // Returning foragers go *into* the nest and are re-launched
+          // along a freshly-sampled recruited heading — same behaviour
+          // as a fresh spawn from the nest. Without this, a worker's
+          // post-flip heading sends it straight back to the same food
+          // source it just came from, so a colony with two active
+          // trails never rebalances. With it, every delivery cycle is
+          // a fresh chance to be sent to whichever source is currently
+          // dominating recruitment. Scouts keep their post-flip heading
+          // (they go back to wherever they discovered food).
+          if (ant.role === 'worker' && buf.length > 0) {
+            // Snap to nest centre for the "ant goes into the nest"
+            // visual instead of bumping off the rim.
+            ant.x = this.world.nest.x;
+            ant.y = this.world.nest.y;
+            const base = buf[Math.floor(this._rng() * buf.length)];
+            const spread = this.params.workerSpawnSpread;
+            ant.heading = base + (this._rng() - 0.5) * 2 * spread;
+          }
         }
         if (r === 'died') {
           this.antsDied++;
