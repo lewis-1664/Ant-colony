@@ -178,11 +178,18 @@ When a delivery comes in, the heading is checked against the buffer.
 If it differs from every existing entry by more than
 `recruitNewDirThreshold` (~0.8 rad, ~46°) it's flagged as a "new
 direction" and replaces one entry from the *most-represented cluster*
-in the buffer (not half the buffer). This stops winner-take-all
-without wiping out other established directions, so 3+ food sources
-can coexist in the buffer. A single delivery from a new bearing
-immediately gets one slot (≈12% of worker spawns); subsequent
-deliveries from that bearing grow its representation via FIFO churn.
+in the buffer.
+
+Trimming when the buffer overflows also removes from the most-
+represented cluster (rather than FIFO). Without this, a rare 3rd-
+source delivery that took a slot would be pushed off the buffer in
+~8 high-rate deliveries from the dominant clusters before the next
+3rd-source delivery could arrive — minority directions never built
+representation. Trimming from the dominant cluster instead lets
+minority clusters survive as long as they keep delivering, even at
+much lower rates than the dominant ones. With this rule a new
+direction starts at 2/8 = 25% representation immediately, and 3+
+food sources can each hold their slots in the buffer.
 
 With this rule, multiple food sources can both be exploited as long as
 both produce deliveries. Bootstrapping a *second* source (when scouts

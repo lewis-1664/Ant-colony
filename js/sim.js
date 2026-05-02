@@ -13,6 +13,24 @@ window.AntSim = window.AntSim || {};
     return d;
   }
 
+  // Index of an entry in the most-represented cluster. Each entry's "cluster"
+  // is the set of buffer entries within `threshold` of it; we return the
+  // first entry whose cluster has the highest count. Used both to pick the
+  // entry to replace on a new-direction arrival, and to pick the entry to
+  // trim when the buffer overflows.
+  function mostCommonClusterIdx(buf, threshold) {
+    let bestCount = -1;
+    let bestIdx = 0;
+    for (let i = 0; i < buf.length; i++) {
+      let count = 0;
+      for (let j = 0; j < buf.length; j++) {
+        if (angularDist(buf[i], buf[j]) <= threshold) count++;
+      }
+      if (count > bestCount) { bestCount = count; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
   // Default tunables. Phase 2 will expose more of these via sliders.
   const DEFAULT_PARAMS = {
     speed: 1.0,           // px per tick
@@ -254,22 +272,21 @@ window.AntSim = window.AntSim || {};
             // currently in the buffer. Earlier we replaced half the
             // buffer, but that wiped out a third established direction
             // when a new one arrived. Now a new direction takes a single
-            // slot from whichever cluster has the most entries; repeat
-            // deliveries from the new direction grow its representation
-            // via normal FIFO churn. This lets 3+ food sources coexist.
-            let bestCount = -1;
-            let bestIdx = 0;
-            for (let i = 0; i < buf.length; i++) {
-              let count = 0;
-              for (let j = 0; j < buf.length; j++) {
-                if (angularDist(buf[i], buf[j]) <= threshold) count++;
-              }
-              if (count > bestCount) { bestCount = count; bestIdx = i; }
-            }
-            buf[bestIdx] = ant.heading;
+            // slot from whichever cluster has the most entries.
+            buf[mostCommonClusterIdx(buf, threshold)] = ant.heading;
           }
           buf.push(ant.heading);
-          if (buf.length > this.params.recruitMemory) buf.shift();
+          // When trimming, remove from the most-represented cluster too,
+          // not by FIFO. With FIFO, a rare 3rd-source delivery would be
+          // pushed off the buffer within ~8 high-rate deliveries from
+          // dominant clusters, so the new direction never builds
+          // representation. Removing from the dominant cluster instead
+          // lets minority clusters survive — 3+ food sources can each
+          // hold their slot in the buffer as long as they keep delivering.
+          if (buf.length > this.params.recruitMemory) {
+            const idx = mostCommonClusterIdx(buf, threshold);
+            buf.splice(idx, 1);
+          }
 
           // Returning foragers go *into* the nest and are re-launched
           // along a freshly-sampled recruited heading — same behaviour
