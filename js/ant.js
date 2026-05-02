@@ -146,7 +146,16 @@ window.AntSim = window.AntSim || {};
       const fwd   = sense(ant, pher,  0,           sensorDist);
       const right = sense(ant, pher,  sensorAngle, sensorDist);
 
-      if (fwd >= left && fwd >= right) {
+      // Scouts at a "trail end" (forward pheromone is very low) push
+      // forward and let wander + wall vision handle exploration. Without
+      // this, the strong side gradient (from the trail behind them) pulls
+      // scouts back along the existing trail at every dead end — they
+      // never explore past it to find a route around a new wall.
+      const trailEnd = isScout && !ant.hasFood && fwd < p.scoutTrailEndThreshold;
+
+      if (trailEnd) {
+        // No turn from sensor steering; just wander.
+      } else if (fwd >= left && fwd >= right) {
         // already heading toward strongest — only wander
       } else if (left > right) {
         ant.heading -= turnStrength;

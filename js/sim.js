@@ -63,6 +63,14 @@ window.AntSim = window.AntSim || {};
                               // are scanning for food and need to "see" it
                               // from further so they don't walk straight
                               // past sources during exploration.
+    scoutTrailEndThreshold: 0.5,  // pheromone level — when a searching
+                                  // scout's *forward* sensor reads below
+                                  // this, the trail is ending or blocked.
+                                  // Scouts ignore the side gradient and
+                                  // push forward instead of being pulled
+                                  // back along the established trail —
+                                  // they explore past the dead end so they
+                                  // can route around new walls.
     workerWander: 0.08,       // rad per tick — small noise, stays on heading
     workerTurnStrength: 0.55, // rad per tick toward strongest sensor (strong)
     // Snap-to-destination: when an ant is within snapDist of its current
@@ -242,8 +250,23 @@ window.AntSim = window.AntSim || {};
             }
           }
           if (isNewDir) {
-            const replace = Math.ceil(buf.length / 2);
-            for (let k = 0; k < replace; k++) buf[k] = ant.heading;
+            // Replace one entry from the *most-represented* cluster
+            // currently in the buffer. Earlier we replaced half the
+            // buffer, but that wiped out a third established direction
+            // when a new one arrived. Now a new direction takes a single
+            // slot from whichever cluster has the most entries; repeat
+            // deliveries from the new direction grow its representation
+            // via normal FIFO churn. This lets 3+ food sources coexist.
+            let bestCount = -1;
+            let bestIdx = 0;
+            for (let i = 0; i < buf.length; i++) {
+              let count = 0;
+              for (let j = 0; j < buf.length; j++) {
+                if (angularDist(buf[i], buf[j]) <= threshold) count++;
+              }
+              if (count > bestCount) { bestCount = count; bestIdx = i; }
+            }
+            buf[bestIdx] = ant.heading;
           }
           buf.push(ant.heading);
           if (buf.length > this.params.recruitMemory) buf.shift();

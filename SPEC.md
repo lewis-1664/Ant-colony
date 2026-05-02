@@ -177,11 +177,12 @@ uniformly at random.
 When a delivery comes in, the heading is checked against the buffer.
 If it differs from every existing entry by more than
 `recruitNewDirThreshold` (~0.8 rad, ~46°) it's flagged as a "new
-direction" and overwrites half the buffer with itself before being
-pushed. This stops winner-take-all: a single delivery from a new
-bearing immediately gets ~50% of the next worker spawns, instead of
-being outvoted 7-to-1 by the established trail. Subsequent deliveries
-from the same bearing reinforce normally.
+direction" and replaces one entry from the *most-represented cluster*
+in the buffer (not half the buffer). This stops winner-take-all
+without wiping out other established directions, so 3+ food sources
+can coexist in the buffer. A single delivery from a new bearing
+immediately gets one slot (≈12% of worker spawns); subsequent
+deliveries from that bearing grow its representation via FIFO churn.
 
 With this rule, multiple food sources can both be exploited as long as
 both produce deliveries. Bootstrapping a *second* source (when scouts
@@ -231,6 +232,22 @@ lives drifting off-trail.
 
 Scouts skip the rule. They must be free to traverse low-pheromone
 regions while exploring.
+
+## Scout trail-end behaviour
+
+Scouts on a trail use the same sensor steering as workers, but with a
+crucial exception: when the **forward** sensor reads below
+`scoutTrailEndThreshold` (≈0.5), the side gradient is ignored and the
+scout pushes forward on wander only. Without this, a scout reaching a
+trail's end (e.g. because a new wall blocks it) gets pulled back along
+the strong gradient behind them — they never explore past the dead end
+to find a route around. With it, scouts walk *into* the dead end, hit
+the wall, and let wall-vision and the smarter collision response slide
+them along the wall edge until they find a way around.
+
+Combined with workers' fade-U-turn rule, the colony partitions roles
+neatly: workers stay on healthy trails or abandon failing ones,
+scouts press past trail ends and discover re-routes.
 
 ## Snap-to-destination
 
